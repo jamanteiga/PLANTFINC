@@ -1,0 +1,1 @@
+const SPECIES={nitens:{color:"#37a35c"},roble:{color:"#ffc857"}};
