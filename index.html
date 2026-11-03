@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v0.1</title>
+<title>PLANTFINC v0.2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -21,18 +21,23 @@ header{background:var(--pri);color:#fff;padding:10px 14px;padding-top:max(10px,e
 .status-badge{font-size:.72rem;background:rgba(255,255,255,.2);padding:4px 8px;border-radius:12px;white-space:nowrap}
 #app{flex:1;min-height:0;position:relative;overflow:hidden}
 #map{position:absolute;inset:0}
-.panel{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:16px 16px 0 0;box-shadow:0 -4px 12px rgba(0,0,0,.18);z-index:20;max-height:58%;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
-.panel.collapsed #tab-content,.panel.collapsed .tabs{display:none}
-.ph{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;gap:8px}
-.ph b{font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ph button{background:none;border:none;font-size:1.2rem;padding:2px 8px;cursor:pointer}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px 8px}
-.mc{background:var(--bg);border-radius:8px;padding:5px 4px;text-align:center}
-.mv{font-size:.95rem;font-weight:700;color:var(--pri-dark)}
-.ml{font-size:.65rem;color:#666}
-.tabs{display:flex;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto}
-.tabs button{flex:1;background:none;border:none;padding:9px 8px;font-size:.8rem;font-weight:600;color:#555;white-space:nowrap;border-bottom:3px solid transparent;cursor:pointer}
-.tabs button.act{color:var(--pri-dark);border-bottom-color:var(--pri)}
+.strip{position:absolute;top:8px;left:8px;z-index:15;background:#fff;border-radius:18px;box-shadow:0 2px 8px rgba(0,0,0,.28);padding:6px 12px;font-size:.78rem;font-weight:700;color:var(--pri-dark);border:none;cursor:pointer;display:flex;gap:6px;align-items:center}
+.strip i{font-style:normal;color:#999;font-weight:400}
+.rbtns{position:absolute;right:10px;top:116px;z-index:15;display:grid;gap:10px}
+.rb{width:44px;height:44px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 8px rgba(0,0,0,.3);font-size:1.25rem;cursor:pointer}
+.rb.on{background:var(--pri);color:#fff}
+.menu{position:absolute;right:62px;top:116px;z-index:26;background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px;min-width:150px}
+.menu .hbtn{background:#eef1f3;color:var(--text);padding:10px 12px;font-size:.85rem;text-align:left;border-radius:8px}
+.menu .hbtn.on{background:var(--pri);color:#fff}
+.tb{position:absolute;left:0;right:0;bottom:0;z-index:22;background:#fff;border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 8px rgba(0,0,0,.12)}
+.tb button{flex:1;background:none;border:none;padding:6px 2px 7px;font-size:.68rem;font-weight:600;color:#555;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}
+.tb button b{font-size:1.25rem;line-height:1.2}
+.tb button.act{color:var(--pri-dark);background:var(--pri2,#e8f5e9)}
+.sheet{position:absolute;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom));z-index:21;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.25);max-height:58%;display:flex;flex-direction:column}
+.sh{display:flex;justify-content:space-between;align-items:center;padding:10px 14px 6px;border-bottom:1px solid var(--border)}
+.sh b{font-size:1rem}
+.sh button{background:#eef1f3;border:none;border-radius:50%;width:30px;height:30px;font-size:1rem;cursor:pointer}
+@media(min-width:800px){.sheet{left:10px;right:auto;width:430px;max-height:calc(100% - 80px);border-radius:14px}.tb{left:50%;right:auto;transform:translateX(-50%);width:520px;border-radius:14px 14px 0 0}}
 #tab-content{padding:12px;overflow-y:auto;display:grid;gap:10px;align-content:start}
 label{font-size:.75rem;color:#555;display:block;margin-bottom:2px}
 input,select{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:1rem;background:#fff;color:var(--text)}
@@ -66,18 +71,25 @@ h4{font-size:.85rem;color:var(--pri-dark)}
 </head>
 <body>
 <header>
-  <span>PLANTFINC v0.1</span>
-  <span class="hdr-r">
-    <button class="hbtn" id="btn-base">Satélite</button>
-    <button class="hbtn" id="btn-3d">3D</button>
-    <button class="hbtn on" id="btn-gps">GPS</button>
-    <span id="gps-status" class="status-badge">GPS: esperando…</span>
-  </span>
+  <span id="finca-title" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">PLANTFINC</span>
+  <span class="hdr-r"><span id="gps-status" class="status-badge">GPS: esperando…</span></span>
 </header>
 
 <div id="app">
   <div id="map"></div>
   <div id="toast"></div>
+
+  <button class="strip" id="strip" aria-label="Resumen"><span id="m-area">0.00 ha</span><i>·</i><span><span id="m-ferr">—</span> ferr.</span><i>·</i><span><span id="m-trees">0</span> árb.</span></button>
+
+  <div class="rbtns">
+    <button class="rb" id="btn-loc" aria-label="Centrar en mi posición">&#x25CE;</button>
+    <button class="rb" id="btn-lay" aria-label="Capas">&#x1F5C2;</button>
+  </div>
+  <div class="menu hidden" id="menu">
+    <button class="hbtn" id="btn-base">Satélite</button>
+    <button class="hbtn" id="btn-3d">Relieve 3D</button>
+    <button class="hbtn on" id="btn-gps">GPS activo</button>
+  </div>
 
   <div id="drawbar" class="hidden">
     <div id="drawmsg" class="muted"></div>
@@ -88,23 +100,18 @@ h4{font-size:.85rem;color:var(--pri-dark)}
     </div>
   </div>
 
-  <div id="panel" class="panel">
-    <div class="ph"><b id="finca-title">Finca</b><button id="btn-toggle" aria-label="Plegar panel">&#x25BC;</button></div>
-    <div class="metrics">
-      <div class="mc"><div class="mv" id="m-area">0.00 ha</div><div class="ml">Superficie</div></div>
-      <div class="mc"><div class="mv" id="m-ferr">—</div><div class="ml">Ferrados</div></div>
-      <div class="mc"><div class="mv" id="m-perim">0 m</div><div class="ml">Perímetro</div></div>
-      <div class="mc"><div class="mv" id="m-trees">0</div><div class="ml">Árboles</div></div>
-    </div>
-    <div class="tabs" id="tabs">
-      <button data-tab="finca" class="act">Finca</button>
-      <button data-tab="linderos">Linderos</button>
-      <button data-tab="matriz">Matriz</button>
-      <button data-tab="informe">Informe</button>
-      <button data-tab="norma">Normativa</button>
-    </div>
+  <div id="sheet" class="sheet hidden">
+    <div class="sh"><b id="sheet-title">Finca</b><button id="sheet-x" aria-label="Cerrar">&#x2715;</button></div>
     <div id="tab-content"></div>
   </div>
+
+  <nav class="tb" id="tabs">
+    <button data-tab="finca"><b>&#x1F5FA;</b>Finca</button>
+    <button data-tab="linderos"><b>&#x1F4D0;</b>Linderos</button>
+    <button data-tab="matriz"><b>&#x1F332;</b>Matriz</button>
+    <button data-tab="informe"><b>&#x1F4C4;</b>Informe</button>
+    <button data-tab="norma"><b>&#x2696;&#xFE0F;</b>Normativa</button>
+  </nav>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -280,7 +287,7 @@ h4{font-size:.85rem;color:var(--pri-dark)}
     if (!mapReady || !finca.ring) return;
     let a = [Infinity, Infinity], b = [-Infinity, -Infinity];
     finca.ring.forEach((p) => { a = [Math.min(a[0], p[0]), Math.min(a[1], p[1])]; b = [Math.max(b[0], p[0]), Math.max(b[1], p[1])]; });
-    map.fitBounds([a, b], { padding: { top: 60, bottom: Math.round(window.innerHeight * 0.45), left: 30, right: 30 }, maxZoom: 20, duration: 600 });
+    map.fitBounds([a, b], { padding: { top: 60, bottom: 90, left: 30, right: 70 }, maxZoom: 20, duration: 600 });
   }
 
   /* ---------- dibujo ---------- */
@@ -293,7 +300,18 @@ h4{font-size:.85rem;color:var(--pri-dark)}
     anchor: 'Toca el punto donde quieres anclar la matriz.',
     pick: 'Toca un punto dentro de la finca (SIGPAC).'
   };
-  function setCollapsed(v) { $('#panel').classList.toggle('collapsed', v); $('#btn-toggle').innerHTML = v ? '&#x25B2;' : '&#x25BC;'; }
+  let sheetOpen = false, reopen = false;
+  const TITLES = { finca: 'Finca', linderos: 'Linderos', matriz: 'Matriz y exclusiones', informe: 'Informe y economía', norma: 'Normativa y avisos' };
+  function openSheet(t) {
+    if (t) tab = t;
+    sheetOpen = true; $('#menu').classList.add('hidden');
+    $('#sheet').classList.remove('hidden'); renderTab();
+  }
+  function closeSheet() {
+    sheetOpen = false; $('#sheet').classList.add('hidden');
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.remove('act'));
+  }
+  function setCollapsed(v) { if (v) { reopen = sheetOpen; closeSheet(); } else if (reopen) { reopen = false; openSheet(); } }
   function startDraw(mode) {
     if (!mapReady) { toast('El mapa no está disponible'); return; }
     draw = { mode: mode, pts: [] };
@@ -314,7 +332,7 @@ h4{font-size:.85rem;color:var(--pri-dark)}
   }
   function endDraw() { draw = null; $('#drawbar').classList.add('hidden'); setSrc('draw', EMPTY); setCollapsed(false); }
   function onMapClick(e) {
-    if (!draw) return;
+    if (!draw) { $('#menu').classList.add('hidden'); return; }
     draw.pts.push([e.lngLat.lng, e.lngLat.lat]);
     if (draw.mode === 'anchor') { finca.params.anchor = draw.pts[0]; endDraw(); recalc(); renderTab(); toast('Matriz anclada'); return; }
     if (draw.mode === 'pick') { const p = draw.pts[0]; endDraw(); parcelAtPoint(p[0], p[1]); return; }
@@ -386,12 +404,12 @@ h4{font-size:.85rem;color:var(--pri-dark)}
     if (!('geolocation' in navigator)) { $('#gps-status').textContent = 'GPS: no disponible'; return; }
     if (gpsWatch !== null) return;
     gpsWatch = navigator.geolocation.watchPosition(onFix, () => { $('#gps-status').textContent = 'GPS: sin señal'; }, { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
-    $('#btn-gps').classList.add('on');
+    $('#btn-gps').classList.add('on'); $('#btn-gps').textContent = 'GPS activo';
   }
   function stopGPS() {
     if (gpsWatch !== null) navigator.geolocation.clearWatch(gpsWatch);
     gpsWatch = null; lastFix = null; setSrc('gps', EMPTY);
-    $('#gps-status').textContent = 'GPS: apagado'; $('#btn-gps').classList.remove('on');
+    $('#gps-status').textContent = 'GPS: apagado'; $('#btn-gps').classList.remove('on'); $('#btn-gps').textContent = 'GPS apagado';
   }
   function onFix(pos) {
     const c = pos.coords; lastFix = [c.longitude, c.latitude, c.accuracy];
@@ -418,11 +436,10 @@ h4{font-size:.85rem;color:var(--pri-dark)}
   };
   $('#btn-base').onclick = () => {
     if (!mapReady) return;
-    sat = !sat; $('#btn-base').classList.toggle('on', sat); $('#btn-base').textContent = sat ? 'Mapa' : 'Satélite';
+    sat = !sat; $('#btn-base').classList.toggle('on', sat); $('#btn-base').textContent = sat ? 'Mapa base' : 'Satélite';
     map.setLayoutProperty('pnoa', 'visibility', sat ? 'visible' : 'none');
     map.setLayoutProperty('osm', 'visibility', sat ? 'none' : 'visible');
   };
-  $('#btn-toggle').onclick = () => setCollapsed(!$('#panel').classList.contains('collapsed'));
 
   /* ---------- avisos normativos ---------- */
   function warnings() {
@@ -486,12 +503,11 @@ h4{font-size:.85rem;color:var(--pri-dark)}
       '<tr><td><b>Total</b></td><td>' + res.total + '</td><td><b>' + eur(e.cost) + '</b></td><td><b>' + eur(e.inc) + '</b></td></tr></table>';
   }
   function refreshDynamic() {
-    $('#finca-title').textContent = finca.name || 'Finca';
+    $('#finca-title').textContent = 'PLANTFINC · ' + (finca.name || 'Finca');
     const st = finca.ring ? PF.stats(finca.ring) : { area: 0, perimeter: 0 };
     $('#m-area').textContent = (st.area / 10000).toFixed(2) + ' ha';
     const fm = ferradoM2();
     $('#m-ferr').textContent = fm && st.area ? (st.area / fm).toFixed(1) : '—';
-    $('#m-perim').textContent = Math.round(st.perimeter) + ' m';
     $('#m-trees').textContent = res.total;
     ['counts', 'warns', 'econres'].forEach((id) => {
       const el = $('#' + id); if (!el) return;
@@ -581,10 +597,19 @@ h4{font-size:.85rem;color:var(--pri-dark)}
   function renderTab() {
     const t = { finca: tabFinca, linderos: tabLinderos, matriz: tabMatriz, informe: tabInforme, norma: tabNorma }[tab];
     $('#tab-content').innerHTML = t();
-    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('act', b.dataset.tab === tab));
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('act', sheetOpen && b.dataset.tab === tab));
+    $('#sheet-title').textContent = TITLES[tab];
     refreshDynamic();
   }
-  $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { tab = b.dataset.tab; renderTab(); } });
+  $('#tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (sheetOpen && tab === b.dataset.tab) closeSheet(); else openSheet(b.dataset.tab);
+  });
+  $('#sheet-x').onclick = closeSheet;
+  $('#strip').onclick = () => openSheet('informe');
+  $('#finca-title').onclick = () => openSheet('finca');
+  $('#btn-lay').onclick = () => { $('#menu').classList.toggle('hidden'); };
+  $('#btn-loc').onclick = () => { if (lastFix && mapReady) map.flyTo({ center: [lastFix[0], lastFix[1]], zoom: Math.max(map.getZoom(), 17) }); else toast(gpsWatch === null ? 'GPS apagado: actívalo en Capas' : 'Sin posición GPS todavía'); };
 
   /* ---------- eventos del contenido ---------- */
   function setPath(obj, path, v) {
@@ -637,8 +662,8 @@ h4{font-size:.85rem;color:var(--pri-dark)}
       case 'pick': startDraw('pick'); break;
       case 'gps-parcel': if (lastFix) parcelAtPoint(lastFix[0], lastFix[1]); else toast('Sin posición GPS todavía'); break;
       case 'search': searchParcel($('#q').value); break;
-      case 'fit': fitFinca(); break;
-      case 'center-me': if (lastFix && mapReady) map.flyTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else toast('Sin posición GPS todavía'); break;
+      case 'fit': closeSheet(); fitFinca(); break;
+      case 'center-me': closeSheet(); if (lastFix && mapReady) map.flyTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else toast('Sin posición GPS todavía'); break;
       case 'open': { const id = $('#sel-finca').value; if (store.fincas[id]) { persist(); openFinca(store.fincas[id]); } break; }
       case 'new': persist(); finca = newFinca(); recalc(); renderTab(); toast('Finca nueva: dibuja o importa la geometría'); break;
       case 'del': {
