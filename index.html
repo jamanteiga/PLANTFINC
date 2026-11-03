@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v0.7</title>
+<title>PLANTFINC v1.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -118,6 +118,13 @@ details>*:not(summary){margin-bottom:6px}
 #ms-info{font-size:.85rem;color:#0d47a1;font-weight:700}
 .efr{display:flex;align-items:center;gap:3px;font-size:.7rem;white-space:nowrap}
 .efr input{width:auto}
+#trbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
+#trbar .g3{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:6px}
+#tr-info{font-size:.82rem;color:#e65100;font-weight:700}
+.stp{display:grid;grid-template-columns:34px 1fr 34px;gap:4px;align-items:center}.stp .mini{margin:0;padding:6px 0;font-size:1rem;font-weight:700}
+#ttbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
+#tt-info{font-size:.85rem;color:#1b5e20;font-weight:700}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px}.seg2 .btn.on{background:var(--pri);color:#fff}
 </style>
 </head>
 <body>
@@ -137,7 +144,6 @@ details>*:not(summary){margin-bottom:6px}
 
   <div class="rbtns">
     <button class="rb" id="btn-loc" aria-label="Centrar en mi posición">&#x25CE;</button>
-    <button class="rb" id="btn-meas" aria-label="Medir distancias">&#x1F4CF;</button>
     <button class="rb" id="btn-lay" aria-label="Capas">&#x1F5C2;</button>
   </div>
   <div class="menu hidden" id="hmenu">
@@ -152,7 +158,21 @@ details>*:not(summary){margin-bottom:6px}
     <button class="hbtn on" id="btn-gps">GPS activo</button>
   </div>
 
+  <div id="trbar" class="hidden">
+    <div id="tr-info" class="muted"></div>
+    <div class="g2"><div><label>Este tramo colinda con</label><select id="tr-tipo"></select></div><div><label>Árbol en el tramo</label><select id="tr-arb"></select></div></div>
+    <div class="g3">
+      <button class="btn sec" id="tr-rev">&#x21C4; Invertir</button>
+      <button class="btn sec" id="tr-x">Cancelar</button>
+      <button class="btn" id="tr-ok" disabled>Aplicar</button>
+    </div>
+  </div>
+  <div id="ttbar" class="hidden">
+    <div id="tt-info" class="muted"></div>
+    <div class="g2e"><div id="tt-sp-wrap"><label>Árbol a añadir</label><select id="tt-sp"></select></div><button class="btn" id="tt-ok" style="width:auto;align-self:end">Terminar</button></div>
+  </div>
   <div id="msbar" class="hidden">
+    <div class="seg2"><button class="btn sec on" id="ms-pp">&#x2194; Punto a punto</button><button class="btn sec" id="ms-pl">&#x22A5; Punto a lindero</button></div>
     <div id="ms-info" class="muted"></div>
     <div class="g3">
       <button class="btn sec" id="ms-undo">Borrar última</button>
@@ -200,6 +220,7 @@ details>*:not(summary){margin-bottom:6px}
     <button data-tab="finca"><b>&#x1F5FA;</b>Finca</button>
     <button data-tab="linderos"><b>&#x1F4D0;</b>Linderos</button>
     <button data-tab="matriz"><b>&#x1F332;</b>Matriz</button>
+    <button data-tab="medir"><b>&#x1F4CF;</b>Medir</button>
     <button data-tab="informe"><b>&#x1F4C4;</b>Informe</button>
     <button data-tab="norma"><b>&#x2696;&#xFE0F;</b>Normativa</button>
   </nav>
@@ -236,8 +257,8 @@ details>*:not(summary){margin-bottom:6px}
   function migrate(f) {
     const d = { concello: 'abegondo', uso: 'eucalipto', suelo: 'forestal', natura: false, ferrado: null, edges: [], exclusions: [], subzonas: [] };
     Object.keys(d).forEach((k) => { if (f[k] === undefined) f[k] = d[k]; });
-    if (f.maxEdges == null) f.maxEdges = 10;
-    f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 1, core: 'nitens', anchor: null }, f.params || {});
+    if (f.maxEdges == null) f.maxEdges = 80;
+    f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 1, core: 'nitens', anchor: null, opt: 'auto', dmin: 3 }, f.params || {});
     f.econ = f.econ || {};
     f.econ.coste = f.econ.coste == null ? null : f.econ.coste;
     f.econ.sp = f.econ.sp || {};
@@ -247,10 +268,14 @@ details>*:not(summary){margin-bottom:6px}
       if (f.maxEdges === 20) f.maxEdges = 10;
       if (f.ringOrig) { f.ring = simplifyRing(f.ringOrig, f.maxEdges); f.edges = []; f.params.anchor = null; }
     }
+    if (!f.v7) {   // v0.8: un lindero = tramo continuo; el contorno conserva su forma real
+      f.v7 = 1; f.maxEdges = 80;
+      if (f.ringOrig) { f.ring = simplifyRing(f.ringOrig, 80); f.edges = []; f.params.anchor = null; }
+    }
     if (!f.v6) {   // v0.7: por defecto solo eucalipto; las frondosas de lindero las eliges tú
       f.v6 = 1; (f.edges || []).forEach((e) => { e.franja = false; });
     }
-    f.cotas = f.cotas || [];
+    f.cotas = f.cotas || []; f.manual = f.manual || []; f.removed = f.removed || [];
     if (f.ring) PF.ensureEdges(f);
     return f;
   }
@@ -277,17 +302,36 @@ details>*:not(summary){margin-bottom:6px}
   let prep = null, res = { trees: [], counts: {}, total: 0 };
   function clampParams() {
     const p = finca.params;
-    p.sx = Math.max(0.5, num(p.sx, 3.5)); p.sy = Math.max(0.5, num(p.sy, 3.5));
+    const q25 = (v) => Math.round(v / 0.25) * 0.25; p.sx = Math.max(0.5, q25(num(p.sx, 3.5))); p.sy = Math.max(0.5, q25(num(p.sy, 3.5)));
     p.angle = num(p.angle, 0); p.shU = num(p.shU, 0); p.shV = num(p.shV, 0);
     p.rows = Math.max(0, Math.round(num(p.rows, 3)));
     if (!S[p.core] || S[p.core].group !== 'euc') p.core = 'nitens';
+  }
+  const optCache = {};
+  function autoOpt() {
+    const p = finca.params; if (p.opt === 'manual') return;
+    const fijo = p.opt === 'fijo';
+    const key = JSON.stringify([finca.ring, finca.edges, finca.exclusions, finca.subzonas, p.sx, p.sy, p.core, p.rows, p.opt, fijo ? p.angle : null, norm]);
+    if (optCache[finca.id] === key) return;
+    const best = PF.optimizeAuto(prep, finca, { fixedAngle: fijo ? num(p.angle, 0) : null });
+    if (!fijo) p.angle = best.angle;
+    p.shU = best.shU; p.shV = best.shV; optCache[finca.id] = key;
+  }
+  function applyManual() {
+    if (!prep) return;
+    const pj = prep.pj, rem = (finca.removed || []).map((p) => pj.toXY(p[0], p[1]));
+    if (rem.length) res.trees = res.trees.filter((t) => !rem.some((r) => Math.hypot(r[0] - t.x, r[1] - t.y) < 0.6));
+    (finca.manual || []).forEach((m) => { const q = pj.toXY(m.ll[0], m.ll[1]); res.trees.push({ x: q[0], y: q[1], sp: m.sp || finca.params.core, man: 1 }); });
+    res.counts = {}; res.trees.forEach((t) => { res.counts[t.sp] = (res.counts[t.sp] || 0) + 1; }); res.total = res.trees.length;
   }
   function recalc() {
     clampParams();
     if (finca.ring && finca.ring.length >= 3) {
       PF.ensureEdges(finca);
       prep = PF.prepare(finca, norm);
+      autoOpt();
       res = PF.generate(prep, finca);
+      applyManual();
     } else { prep = null; res = { trees: [], counts: {}, total: 0 }; }
     finca.total = res.total; refreshMap(); refreshDynamic(); persist();
   }
@@ -312,7 +356,7 @@ details>*:not(summary){margin-bottom:6px}
   function polyFeature(coords, props) { return { type: 'Feature', properties: props || {}, geometry: { type: 'Polygon', coordinates: [closeRing(coords)] } }; }
 
   /* ---------- mapa ---------- */
-  let map = null, mapReady = false, hlIdx = -1, hlT = null;
+  let map = null, mapReady = false, hlSet = new Set(), hlT = null;
   function initMap() {
     if (typeof maplibregl === 'undefined') { toast('No se pudo cargar MapLibre (¿sin conexión?)', 8000); return; }
     const style = {
@@ -333,7 +377,7 @@ details>*:not(summary){margin-bottom:6px}
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
     map.on('load', () => {
-      ['cotas', 'sig', 'finca', 'edges', 'trees', 'excl', 'zonas', 'draw', 'gps', 'anchor'].forEach((id) => map.addSource(id, { type: 'geojson', data: EMPTY }));
+      ['verts', 'cotas', 'sig', 'finca', 'edges', 'trees', 'excl', 'zonas', 'draw', 'gps', 'anchor'].forEach((id) => map.addSource(id, { type: 'geojson', data: EMPTY }));
       map.addLayer({ id: 'sig-fill', type: 'fill', source: 'sig', paint: { 'fill-color': ['case', ['==', ['get', 'sel'], 1], '#43a047', '#ffb74d'], 'fill-opacity': ['case', ['==', ['get', 'sel'], 1], 0.45, 0.08] } });
       map.addLayer({ id: 'sig-line', type: 'line', source: 'sig', paint: { 'line-color': ['case', ['==', ['get', 'sel'], 1], '#1b5e20', '#ef6c00'], 'line-width': ['case', ['==', ['get', 'sel'], 1], 3, 1.2] } });
       map.addLayer({ id: 'finca-fill', type: 'fill', source: 'finca', paint: { 'fill-color': '#2e7d32', 'fill-opacity': 0.12 } });
@@ -351,6 +395,7 @@ details>*:not(summary){margin-bottom:6px}
       map.addLayer({ id: 'gps-pt', type: 'circle', source: 'gps', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 7, 'circle-color': '#1976d2', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
       map.addLayer({ id: 'cotas-line', type: 'line', source: 'cotas', filter: ['==', ['get', 't'], 'l'], paint: { 'line-color': '#0d47a1', 'line-width': 2.5 } });
       map.addLayer({ id: 'cotas-pt', type: 'circle', source: 'cotas', filter: ['==', ['get', 't'], 'p'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#0d47a1', 'circle-stroke-width': 2.5 } });
+      map.addLayer({ id: 'verts-pt', type: 'circle', source: 'verts', paint: { 'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-color': '#e65100', 'circle-stroke-width': 3 } });
       map.addLayer({ id: 'draw-line', type: 'line', source: 'draw', filter: ['==', ['get', 't'], 'line'], paint: { 'line-color': '#ff6f00', 'line-width': 3 } });
       map.addLayer({ id: 'draw-pts', type: 'circle', source: 'draw', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#ff6f00', 'circle-stroke-width': 2 } });
       mapReady = true; applyBase(); refreshMap();
@@ -368,7 +413,7 @@ details>*:not(summary){margin-bottom:6px}
     if (finca.ring && finca.ring.length >= 3) {
       setSrc('finca', polyFeature(finca.ring));
       setSrc('edges', { type: 'FeatureCollection', features: finca.ring.map((p, i) => ({
-        type: 'Feature', properties: { i: i, color: (L[finca.edges[i] ? finca.edges[i].tipo : 'libre'] || L.libre).color, hl: i === hlIdx ? 1 : 0 },
+        type: 'Feature', properties: { i: i, color: (L[finca.edges[i] ? finca.edges[i].tipo : 'libre'] || L.libre).color, hl: hlSet.has(i) ? 1 : 0 },
         geometry: { type: 'LineString', coordinates: [p, finca.ring[(i + 1) % finca.ring.length]] } })) });
     } else { setSrc('finca', EMPTY); setSrc('edges', EMPTY); }
 
@@ -393,6 +438,65 @@ details>*:not(summary){margin-bottom:6px}
     setSrc('anchor', finca.params.anchor ? { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: finca.params.anchor } } : EMPTY);
   }
 
+  /* ---------- árboles a mano ---------- */
+  let tt = null;
+  function ttInfo() {
+    $('#tt-info').textContent = tt.mode === 'add' ? 'Toca el mapa para AÑADIR un árbol (' + finca.manual.length + ' añadidos).' : 'Toca un árbol para QUITARLO (' + finca.removed.length + ' quitados de la matriz).';
+    $('#tt-sp-wrap').classList.toggle('hidden', tt.mode !== 'add');
+  }
+  function startTrees(mode) {
+    if (!mapReady || onList || !prep) { toast('Primero elige la parcela en el mapa SIGPAC'); return; }
+    closeSheet(); endSigpac(); if (ms) endMeasure(); if (tr) endTramo(); if (draw) endDraw();
+    tt = { mode: mode };
+    $('#tt-sp').innerHTML = ARB().map((x) => '<option value="' + x[0] + '">' + esc(x[1]) + '</option>').join('');
+    $('#ttbar').classList.remove('hidden'); ttInfo();
+  }
+  function endTrees() { if (!tt) return; tt = null; $('#ttbar').classList.add('hidden'); renderTab(); }
+  function ttTap(e) {
+    const pj = prep.pj;
+    if (tt.mode === 'add') {
+      const v = $('#tt-sp').value, sp = v === 'euc' ? finca.params.core : v, ll = [e.lngLat.lng, e.lngLat.lat], q = pj.toXY(ll[0], ll[1]);
+      let md = Infinity; res.trees.forEach((t) => { md = Math.min(md, Math.hypot(t.x - q[0], t.y - q[1])); });
+      const legal = PF.makeEval(prep, finca)(q[0], q[1]);
+      finca.manual.push({ ll: ll, sp: sp }); recalc(); ttInfo();
+      const dmin = num(finca.params.dmin, 3);
+      toast((md < dmin ? '⚠ a ' + fmtM(md) + ' del árbol más cercano. ' : '') + (legal ? '' : '⚠ dentro de la distancia legal al lindero. ') + 'Árbol añadido.', 3500);
+      return;
+    }
+    let best = -1, bd = 18;
+    res.trees.forEach((t, i) => {
+      const ll = pj.toLL(t.x, t.y); let d;
+      if (typeof map.project === 'function') { const p = map.project(ll); d = Math.hypot(p.x - e.point.x, p.y - e.point.y); } else d = Math.hypot(ll[0] - e.lngLat.lng, ll[1] - e.lngLat.lat) * 1e5;
+      if (d < bd) { bd = d; best = i; }
+    });
+    if (best < 0) return;
+    const t = res.trees[best], ll = pj.toLL(t.x, t.y);
+    if (t.man) { let mi = -1, md = Infinity; finca.manual.forEach((m, i) => { const d = Math.hypot(m.ll[0] - ll[0], m.ll[1] - ll[1]); if (d < md) { md = d; mi = i; } }); if (mi >= 0) finca.manual.splice(mi, 1); }
+    else finca.removed.push(ll);
+    recalc(); ttInfo();
+  }
+  // Rellena huecos con árboles respetando distancias legales y la distancia mínima entre árboles
+  function fillGaps() {
+    if (!prep) { toast('Primero elige la parcela'); return; }
+    const dmin = Math.max(0.5, num(finca.params.dmin, 3)), ev = PF.makeEval(prep, finca), pj = prep.pj;
+    const cell = dmin, H = new Map(), key = (x, y) => Math.floor(x / cell) + ',' + Math.floor(y / cell);
+    const near = (x, y) => { let md = Infinity; const cx = Math.floor(x / cell), cy = Math.floor(y / cell); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = H.get((cx + i) + ',' + (cy + j)); if (a) for (let k = 0; k < a.length; k++) md = Math.min(md, Math.hypot(a[k][0] - x, a[k][1] - y)); } return md; };
+    const put = (x, y) => { const k = key(x, y); if (!H.has(k)) H.set(k, []); H.get(k).push([x, y]); };
+    res.trees.forEach((t) => put(t.x, t.y));
+    (finca.removed || []).forEach((r) => { const q = pj.toXY(r[0], r[1]); put(q[0], q[1]); });
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    prep.ring.forEach((p) => { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+    const cand = [], st = 0.25;
+    for (let x = x0; x <= x1; x += st) for (let y = y0; y <= y1; y += st) { const d = near(x, y); if (d >= dmin) cand.push([x, y, d]); }
+    cand.sort((a, b) => b[2] - a[2]);
+    let n = 0;
+    for (let i = 0; i < cand.length; i++) {
+      const c = cand[i]; if (near(c[0], c[1]) < dmin) continue;
+      const sp = ev(c[0], c[1]); if (!sp) continue;
+      put(c[0], c[1]); finca.manual.push({ ll: pj.toLL(c[0], c[1]), sp: sp, fill: 1 }); n++;
+    }
+    recalc(); renderTab(); toast(n ? n + ' árboles añadidos en huecos (mín. ' + fmtM(dmin) + ' entre árboles)' : 'No hay huecos con esa distancia mínima', 4500);
+  }
   /* ---------- cotas (medir distancias) ---------- */
   let ms = null, cMarks = [];
   const fmtM = (v) => v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m';
@@ -416,32 +520,129 @@ details>*:not(summary){margin-bottom:6px}
     setSrc('cotas', { type: 'FeatureCollection', features: f });
   }
   function msInfo(t) { $('#ms-info').textContent = t; }
+  function setMeasTab(on) { document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('act', on && b.dataset.tab === 'medir')); }
   function startMeasure() {
     if (!mapReady || onList) return;
-    closeSheet(); endSigpac(); if (draw) endDraw(); $('#menu').classList.add('hidden');
-    ms = { p: null }; $('#msbar').classList.remove('hidden'); $('#btn-meas').classList.add('on');
-    msInfo('Toca el primer punto (se ajusta a los vértices de la finca).');
+    closeSheet(); endSigpac(); if (draw) endDraw(); if (tr) endTramo(); if (tt) endTrees(); $('#menu').classList.add('hidden');
+    ms = { p: null, mode: ms ? ms.mode : 'pp' }; $('#msbar').classList.remove('hidden'); setMeasTab(true); msMode(ms.mode);
   }
-  function endMeasure() { ms = null; $('#msbar').classList.add('hidden'); $('#btn-meas').classList.remove('on'); refreshCotas(); }
-  function msTap(e) {
+  function msMode(m) {
+    ms.mode = m; ms.p = null;
+    $('#ms-pp').classList.toggle('on', m === 'pp'); $('#ms-pl').classList.toggle('on', m === 'pl');
+    msInfo(m === 'pp' ? 'Toca el primer punto (se ajusta a árboles y vértices).' : 'Toca un punto (o un árbol): se mide la distancia perpendicular al lindero más cercano.');
+    refreshCotas();
+  }
+  function endMeasure() { ms = null; $('#msbar').classList.add('hidden'); setMeasTab(false); refreshCotas(); }
+  function snapPt(e) {
     let pt = [e.lngLat.lng, e.lngLat.lat];
-    if (finca.ring && typeof map.project === 'function') {   // ajuste a vértices (14 px)
-      let bd = 14;
-      finca.ring.forEach((v) => { const q = map.project(v), d = Math.hypot(q.x - e.point.x, q.y - e.point.y); if (d < bd) { bd = d; pt = v.slice(); } });
-    }
-    if (!ms.p) { ms.p = pt; msInfo('Toca el segundo punto.'); refreshCotas(); return; }
-    const d = distLL(ms.p, pt); finca.cotas.push({ a: ms.p, b: pt }); ms.p = null;
-    msInfo('Cota: ' + fmtM(d) + ' — toca otro punto para medir otra.'); recalc();
+    if (typeof map.project !== 'function') return pt;
+    let bd = 14;
+    if (finca.ring) finca.ring.forEach((v) => { const q = map.project(v), d = Math.hypot(q.x - e.point.x, q.y - e.point.y); if (d < bd) { bd = d; pt = v.slice(); } });
+    if (prep) { let bt = 12; res.trees.forEach((t) => { const ll = prep.pj.toLL(t.x, t.y), q = map.project(ll), d = Math.hypot(q.x - e.point.x, q.y - e.point.y); if (d < bt) { bt = d; pt = ll; } }); }
+    return pt;
   }
+  // pie de la perpendicular del punto al contorno (si no hay perpendicular, al vértice más cercano)
+  function footOnBoundary(pt) {
+    const pj = PF.makeProj(pt[0], pt[1]), n = finca.ring.length; let best = null;
+    for (let i = 0; i < n; i++) {
+      const a = pj.toXY(finca.ring[i][0], finca.ring[i][1]), b = pj.toXY(finca.ring[(i + 1) % n][0], finca.ring[(i + 1) % n][1]);
+      const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy; if (!l2) continue;
+      const t = (-a[0] * dx - a[1] * dy) / l2, perp = t >= 0 && t <= 1, tc = Math.max(0, Math.min(1, t));
+      const fx = a[0] + tc * dx, fy = a[1] + tc * dy, d = Math.hypot(fx, fy);
+      if (!best || (perp && !best.perp) || (perp === best.perp && d < best.d)) best = { d: d, edge: i, perp: perp, pt: pj.toLL(fx, fy) };
+    }
+    return best;
+  }
+  function msTap(e) {
+    const pt = snapPt(e);
+    if (ms.mode === 'pl') {
+      if (!finca.ring) return;
+      const f = footOnBoundary(pt); if (!f) return;
+      finca.cotas = [{ a: pt, b: f.pt }];
+      const ri = runs().findIndex((r) => r.edges.indexOf(f.edge) >= 0);
+      msInfo('⊥ al lindero ' + (ri + 1) + ': ' + fmtM(distLL(pt, f.pt)) + ' — toca otro punto.'); recalc(); return;
+    }
+    if (!ms.p) { if (finca.cotas.length) { finca.cotas = []; persist(); } ms.p = pt; msInfo('Toca el segundo punto.'); refreshCotas(); return; }
+    const d = distLL(ms.p, pt); finca.cotas = [{ a: ms.p, b: pt }]; ms.p = null;
+    msInfo('Cota: ' + fmtM(d) + ' — un nuevo punto borra esta medida.'); recalc();
+  }
+  /* ---------- linderos = tramos continuos con las mismas propiedades ---------- */
+  const edgeKey = (e) => [e.tipo, e.vecino == null || e.vecino === '' ? '' : e.vecino, e.franja ? 1 : 0, e.franja ? e.especie : ''].join('|');
+  function runs() {
+    if (!finca || !finca.ring || finca.ring.length < 3) return [];
+    PF.ensureEdges(finca);
+    const n = finca.ring.length, E = finca.edges, len = PF.stats(finca.ring).lengths;
+    let st = -1;
+    for (let i = 0; i < n; i++) if (edgeKey(E[i]) !== edgeKey(E[(i + n - 1) % n])) { st = i; break; }
+    const out = [];
+    const close = (r) => { let tot = 0; r.edges.forEach((i) => { tot += len[i]; }); r.len = tot; let acc = 0; r.label = r.edges[0]; for (let k = 0; k < r.edges.length; k++) { acc += len[r.edges[k]]; if (acc >= tot / 2) { r.label = r.edges[k]; break; } } out.push(r); };
+    if (st < 0) { close({ edges: Array.from({ length: n }, (_, i) => i) }); return out; }
+    let cur = null;
+    for (let k = 0; k < n; k++) {
+      const i = (st + k) % n;
+      if (!cur || edgeKey(E[i]) !== edgeKey(E[cur.edges[0]])) { if (cur) close(cur); cur = { edges: [] }; }
+      cur.edges.push(i);
+    }
+    close(cur);
+    return out;
+  }
+  const ARB = () => [['euc', 'Eucalipto']].concat(Object.keys(S).filter((k) => S[k].group !== 'euc').map((k) => [k, S[k].name]));
+  const edgeArb = (e) => (e.franja ? e.especie : 'euc');
   let eMarks = [];
   function refreshEdgeNums() {
     eMarks.forEach((m) => m.remove()); eMarks = [];
     if (!mapReady || !finca || !finca.ring || typeof maplibregl.Marker !== 'function') return;
-    finca.ring.forEach((p, i) => {
-      const q = finca.ring[(i + 1) % finca.ring.length], el = document.createElement('div');
-      el.className = 'enum'; el.textContent = i + 1; el.style.background = (L[finca.edges[i] ? finca.edges[i].tipo : 'libre'] || L.libre).color;
+    runs().forEach((r, ri) => {
+      const i = r.label, p = finca.ring[i], q = finca.ring[(i + 1) % finca.ring.length], el = document.createElement('div');
+      el.className = 'enum'; el.textContent = ri + 1; el.style.background = (L[finca.edges[i].tipo] || L.libre).color;
       eMarks.push(new maplibregl.Marker({ element: el }).setLngLat([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]).addTo(map));
     });
+  }
+  function flashRun(ri) {
+    const r = runs()[ri]; if (!r) return;
+    hlSet = new Set(r.edges); refreshMap(); clearTimeout(hlT); hlT = setTimeout(() => { hlSet = new Set(); refreshMap(); }, 3000);
+  }
+  /* ---------- herramienta de tramo: define qué parte del contorno es río, pista, vecino… ---------- */
+  let tr = null;
+  function trEdges() {
+    const n = finca.ring.length; let a = tr.a, b = tr.b; if (tr.rev) { const t = a; a = b; b = t; }
+    const out = []; for (let i = a; i !== b; i = (i + 1) % n) out.push(i); return out;
+  }
+  function trInfo(t) { $('#tr-info').textContent = t; }
+  function trPreview() {
+    if (tr.a == null || tr.b == null) { hlSet = new Set(); $('#tr-ok').disabled = true; }
+    else {
+      const es = trEdges(), len = PF.stats(finca.ring).lengths; let tot = 0; es.forEach((i) => { tot += len[i]; });
+      hlSet = new Set(es); $('#tr-ok').disabled = false;
+      trInfo('Tramo resaltado: ' + fmtM(tot) + '. Si es el otro lado, pulsa «Invertir».');
+    }
+    refreshMap();
+  }
+  function startTramo() {
+    if (!mapReady || onList || !finca.ring) { toast('Primero elige la parcela en el mapa SIGPAC'); return; }
+    closeSheet(); endSigpac(); if (ms) endMeasure(); if (draw) endDraw();
+    tr = { a: null, b: null, rev: false };
+    $('#tr-tipo').innerHTML = optsObj(L, 'rio', (v) => v.label);
+    $('#tr-arb').innerHTML = ARB().map((x) => '<option value="' + x[0] + '">' + esc(x[1]) + '</option>').join('');
+    setSrc('verts', { type: 'FeatureCollection', features: finca.ring.map((p) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: p } })) });
+    $('#trbar').classList.remove('hidden'); trInfo('Toca el vértice (punto blanco) donde EMPIEZA el tramo.'); $('#tr-ok').disabled = true; hlSet = new Set(); refreshMap();
+  }
+  function endTramo() { if (!tr) return; tr = null; hlSet = new Set(); $('#trbar').classList.add('hidden'); setSrc('verts', EMPTY); refreshMap(); }
+  function trTap(e) {
+    let bi = 0, bd = Infinity;
+    finca.ring.forEach((v, i) => {
+      let d; if (typeof map.project === 'function') { const q = map.project(v); d = Math.hypot(q.x - e.point.x, q.y - e.point.y); } else d = Math.hypot(v[0] - e.lngLat.lng, v[1] - e.lngLat.lat);
+      if (d < bd) { bd = d; bi = i; }
+    });
+    if (tr.a == null || tr.b != null) { tr.a = bi; tr.b = null; tr.rev = false; trInfo('Ahora toca el vértice donde TERMINA el tramo.'); trPreview(); return; }
+    if (bi === tr.a) { toast('Elige otro vértice como final'); return; }
+    tr.b = bi; trPreview();
+  }
+  function trApply() {
+    if (!tr || tr.a == null || tr.b == null) return;
+    const tipo = $('#tr-tipo').value, arb = $('#tr-arb').value, es = trEdges();
+    es.forEach((i) => { const e = finca.edges[i]; e.tipo = tipo; e.vecino = null; if (arb === 'euc') e.franja = false; else { e.franja = true; e.especie = arb; } });
+    endTramo(); recalc(); renderTab(); toast('Tramo asignado: ' + L[tipo].label + ' · ' + es.length + ' lado(s)');
   }
   function fitFinca() {
     if (!mapReady || !finca.ring) return;
@@ -492,13 +693,15 @@ details>*:not(summary){margin-bottom:6px}
   }
   function endDraw() { draw = null; $('#drawbar').classList.add('hidden'); setSrc('draw', EMPTY); setCollapsed(false); }
   function onMapClick(e) {
+    if (tt) { ttTap(e); return; }
+    if (tr) { trTap(e); return; }
     if (ms) { msTap(e); return; }
     if (sg) { sgTap(e); return; }
     if (!draw) {
       $('#menu').classList.add('hidden');
       if (!onList && finca.ring) {
         const pt = e.point, fs = map.queryRenderedFeatures([[pt.x - 12, pt.y - 12], [pt.x + 12, pt.y + 12]], { layers: ['edges'] });
-        if (fs.length) { openEdge = +fs[0].properties.i; hlIdx = openEdge; refreshMap(); clearTimeout(hlT); hlT = setTimeout(() => { hlIdx = -1; refreshMap(); }, 3000); openSheet('linderos'); }
+        if (fs.length) { const ei = +fs[0].properties.i; openEdge = runs().findIndex((r) => r.edges.indexOf(ei) >= 0); flashRun(openEdge); openSheet('linderos'); }
       }
       return;
     }
@@ -519,8 +722,10 @@ details>*:not(summary){margin-bottom:6px}
     endDraw(); recalc(); renderTab();
     if (m === 'finca') fitFinca();
   }
-  $('#btn-meas').onclick = () => { if (ms) endMeasure(); else startMeasure(); };
-  $('#ms-ok').onclick = endMeasure;
+  $('#ms-ok').onclick = endMeasure; $('#tt-ok').onclick = endTrees;
+  $('#ms-pp').onclick = () => { if (ms) msMode('pp'); }; $('#ms-pl').onclick = () => { if (ms) msMode('pl'); };
+  $('#tr-x').onclick = endTramo; $('#tr-ok').onclick = trApply;
+  $('#tr-rev').onclick = () => { if (tr && tr.a != null && tr.b != null) { tr.rev = !tr.rev; trPreview(); } };
   $('#ms-undo').onclick = () => { if (ms && ms.p) { ms.p = null; refreshCotas(); } else if (finca.cotas.length) { finca.cotas.pop(); recalc(); } };
   $('#ms-clear').onclick = () => { finca.cotas = []; if (ms) ms.p = null; recalc(); };
   $('#sg-x').onclick = endSigpac;
@@ -546,7 +751,7 @@ details>*:not(summary){margin-bottom:6px}
     setHeader(); if (mapReady) map.resize();
   }
   function showList() {
-    flush(); if (draw) endDraw(); endSigpac(); if (ms) endMeasure(); closeSheet();
+    flush(); if (draw) endDraw(); endSigpac(); if (ms) endMeasure(); endTramo(); if (tt) endTrees(); closeSheet();
     ['#hmenu', '#menu'].forEach((x) => $(x).classList.add('hidden'));
     onList = true; $('#vList').classList.remove('hidden'); $('#fab').classList.remove('hidden');
     renderList(); setHeader();
@@ -565,7 +770,7 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.7 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v1.1 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -575,7 +780,7 @@ details>*:not(summary){margin-bottom:6px}
   }
   // Simplifica el contorno (Visvalingam) hasta un máximo de vértices y elimina quiebros < 3 m²
   function simplifyRing(ring, maxN, minArea) {
-    maxN = Math.max(3, Math.round(maxN || 10)); minArea = minArea == null ? 12 : minArea;
+    maxN = Math.max(3, Math.round(maxN || 80)); minArea = minArea == null ? 0.5 : minArea;
     if (ring.length <= 3) return ring.slice();
     const cc = PF.centroidLL(ring), pj = PF.makeProj(cc[0], cc[1]);
     let pts = ring.map((p) => ({ p: p, xy: pj.toXY(p[0], p[1]) }));
@@ -782,14 +987,114 @@ details>*:not(summary){margin-bottom:6px}
 
   /* ---------- 3D y base ---------- */
   let on3d = false;
+  /* ---------- relieve 3D con el MDT del CNIG (WCS del IGN), con modelo global de respaldo ---------- */
+  let mdt = null, mdtBox = null, protoOn = false, tok3d = 0; const demCache = new Map();
+  function parseASC(txt) {
+    const i = txt.search(/ncols/i); if (i < 0) return null;
+    const lines = txt.slice(i).split(/\r?\n/), h = {}; let k = 0;
+    for (; k < lines.length; k++) { const m = lines[k].trim().match(/^(ncols|nrows|xllcorner|yllcorner|xllcenter|yllcenter|cellsize|nodata_value)\s+(\S+)/i); if (!m) break; h[m[1].toLowerCase()] = +m[2]; }
+    const nx = h.ncols, ny = h.nrows, cs = h.cellsize; if (!(nx > 1 && ny > 1 && cs > 0)) return null;
+    const data = new Float32Array(nx * ny); let idx = 0;
+    for (; k < lines.length && idx < nx * ny; k++) {
+      const ln = lines[k].trim(); if (!ln) continue; if (/^--/.test(ln)) break;
+      ln.split(/\s+/).forEach((v) => { if (idx < nx * ny) data[idx++] = +v; });
+    }
+    if (idx < nx * ny) return null;
+    const nd = h.nodata_value != null ? h.nodata_value : -9999;
+    const x0 = h.xllcorner != null ? h.xllcorner : h.xllcenter - cs / 2, y0 = h.yllcorner != null ? h.yllcorner : h.yllcenter - cs / 2;
+    if (Math.abs(x0) > 180 || Math.abs(y0) > 90) return null;   // no está en grados
+    return { x0: x0, y0: y0, cs: cs, nx: nx, ny: ny, data: data, nd: nd };
+  }
+  async function fetchMDT(bb) {
+    const base = 'https://servicios.idee.es/wcs-inspire/mdt';
+    const variants = [['Elevacion4258_5', 'Lat', 'Long'], ['Elevacion4258_5', 'lat', 'long'], ['Elevacion4258_25', 'Lat', 'Long'], ['Elevacion4258_25', 'lat', 'long']];
+    let last = '';
+    for (let i = 0; i < variants.length; i++) {
+      const v = variants[i];
+      const url = base + '?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=' + v[0] + '&FORMAT=application/asc&SUBSET=' + v[1] + '(' + bb[1] + ',' + bb[3] + ')&SUBSET=' + v[2] + '(' + bb[0] + ',' + bb[2] + ')';
+      try {
+        const r = await fetch(url), t = await r.text();
+        if (r.ok) { const g = parseASC(t); if (g) { g.src = v[0]; return g; } last = v[0] + ': respuesta no reconocida (' + t.slice(0, 80).replace(/\s+/g, ' ') + ')'; }
+        else last = v[0] + ': HTTP ' + r.status + ' ' + t.slice(0, 80).replace(/\s+/g, ' ');
+      } catch (e) { last = v[0] + ': ' + e.message; }
+    }
+    throw new Error(last);
+  }
+  function mdtSample(lon, lat) {
+    const g = mdt; if (!g) return null;
+    const fx = (lon - g.x0) / g.cs - 0.5, fy = (g.y0 + g.ny * g.cs - lat) / g.cs - 0.5;
+    const ix = Math.floor(fx), iy = Math.floor(fy); if (ix < 0 || iy < 0 || ix + 1 >= g.nx || iy + 1 >= g.ny) return null;
+    const tx = fx - ix, ty = fy - iy, z = (x, y) => g.data[y * g.nx + x];
+    const a = z(ix, iy), b = z(ix + 1, iy), c = z(ix, iy + 1), d = z(ix + 1, iy + 1);
+    if (a <= g.nd + 1 || b <= g.nd + 1 || c <= g.nd + 1 || d <= g.nd + 1) return null;
+    return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
+  }
+  function registerMDT() {
+    if (protoOn) return; protoOn = true;
+    maplibregl.addProtocol('mdt', async (params, abort) => {
+      const m = params.url.match(/mdt:\/\/(\d+)\/(\d+)\/(\d+)/), z = +m[1], x = +m[2], y = +m[3];
+      const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+      const cx = cv.getContext('2d', { willReadFrequently: true });
+      let ok = false;
+      const ck = z + '/' + x + '/' + y;
+      if (demCache.has(ck)) return { data: demCache.get(ck).slice(0) };
+      try {
+        const r = await fetch('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/' + ck + '.png', { signal: abort && abort.signal });
+        if (r.ok) { cx.drawImage(await createImageBitmap(await r.blob()), 0, 0); ok = true; }
+      } catch (e) { /* sin modelo global */ }
+      const id = cx.getImageData(0, 0, 256, 256), dd = id.data;
+      if (!ok) for (let i = 0; i < dd.length; i += 4) { dd[i] = 128; dd[i + 1] = 0; dd[i + 2] = 0; dd[i + 3] = 255; }
+      if (mdt) {
+        const n = Math.pow(2, z);
+        const lon0 = x / n * 360 - 180, lon1 = (x + 1) / n * 360 - 180;
+        if (lon1 >= mdt.x0 && lon0 <= mdt.x0 + mdt.nx * mdt.cs) {
+          for (let py = 0; py < 256; py++) {
+            const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + (py + 0.5) / 256) / n))) * 180 / Math.PI;
+            for (let px = 0; px < 256; px++) {
+              const lon = (x + (px + 0.5) / 256) / n * 360 - 180, h = mdtSample(lon, lat);
+              if (h == null) continue;
+              const v = h + 32768, o = (py * 256 + px) * 4, f = Math.floor(v);
+              dd[o] = f >> 8; dd[o + 1] = f & 255; dd[o + 2] = Math.floor((v - f) * 256); dd[o + 3] = 255;
+            }
+          }
+        }
+      }
+      cx.putImageData(id, 0, 0);
+      const blob = await new Promise((res2) => cv.toBlob(res2, 'image/png'));
+      const buf = await blob.arrayBuffer();
+      if (demCache.size > 300) demCache.delete(demCache.keys().next().value);
+      demCache.set(ck, buf);
+      return { data: buf.slice(0) };
+    });
+  }
+  function mdtBBox() {
+    let bb;
+    if (finca && finca.ring) { let a = [Infinity, Infinity], b = [-Infinity, -Infinity]; finca.ring.forEach((p) => { a = [Math.min(a[0], p[0]), Math.min(a[1], p[1])]; b = [Math.max(b[0], p[0]), Math.max(b[1], p[1])]; }); bb = [a[0] - 0.004, a[1] - 0.003, b[0] + 0.004, b[1] + 0.003]; }
+    else { const c = map.getCenter(); bb = [c.lng - 0.005, c.lat - 0.004, c.lng + 0.005, c.lat + 0.004]; }
+    bb = bb.map((v) => +v.toFixed(5));
+    return { bb: bb, key: bb.join(',') };
+  }
+  async function enable3D(my) {
+    const B = mdtBBox(), bb = B.bb, key = B.key;
+    let msg = '', changed = false;
+    if (!mdt || mdtBox !== key) {
+      toast('Descargando MDT del CNIG…', 20000);
+      try { mdt = await fetchMDT(bb); mdtBox = key; msg = 'Relieve 3D con MDT del CNIG (' + (mdt.src.indexOf('_5') > 0 ? '5 m' : '25 m') + ').'; }
+      catch (e) { mdt = null; mdtBox = null; msg = 'MDT del CNIG no disponible (' + e.message + '). Se usa el modelo global.'; }
+      demCache.clear(); changed = true;
+    } else msg = 'Relieve 3D con MDT del CNIG.';
+    if (my !== tok3d || !on3d) return;            // el usuario ya volvió a 2D
+    registerMDT();
+    if (changed && map.getSource('dem')) { if (map.getTerrain()) map.setTerrain(null); map.removeSource('dem'); }
+    if (!map.getSource('dem')) map.addSource('dem', { type: 'raster-dem', tiles: ['mdt://{z}/{x}/{y}'], encoding: 'terrarium', tileSize: 256, maxzoom: 13, attribution: 'MDT © IGN/CNIG (CC BY 4.0) · modelo global AWS' });
+    map.setTerrain({ source: 'dem', exaggeration: 1.3 }); map.easeTo({ pitch: 60, duration: 600 });
+    toast(msg, 7000);
+  }
   $('#btn-3d').onclick = () => {
     if (!mapReady) return;
-    on3d = !on3d; $('#btn-3d').classList.toggle('on', on3d);
-    if (on3d) {
-      if (!map.getSource('dem')) map.addSource('dem', { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], encoding: 'terrarium', tileSize: 256, maxzoom: 15, attribution: 'Terrain: provisional (no oficial)' });
-      map.setTerrain({ source: 'dem', exaggeration: 1.3 }); map.easeTo({ pitch: 60, duration: 600 });
-      toast('Relieve 3D PROVISIONAL (modelo global, no CNIG). Pendiente integrar MDT del CNIG.', 6000);
-    } else { map.setTerrain(null); map.easeTo({ pitch: 0, duration: 400 }); }
+    on3d = !on3d; tok3d++; $('#btn-3d').classList.toggle('on', on3d);
+    if (on3d) enable3D(tok3d).catch((e) => toast('Error 3D: ' + e.message, 6000));
+    else { try { map.setTerrain(null); } catch (e) { /* */ } map.easeTo({ pitch: 0, bearing: 0, duration: 300 }); toast('Vista 2D', 1500); }
   };
   const BASES = [['osm', 'OpenStreetMap'], ['topo', 'OpenTopoMap'], ['pnoa', 'Satélite PNOA']];
   let baseI = Math.max(0, BASES.findIndex((b) => b[0] === store.base));
@@ -820,10 +1125,11 @@ details>*:not(summary){margin-bottom:6px}
     if (tipos.ferrocarril) add('warn', 'Ferrocarril (Ley 38/2015): prohibido plantar en dominio público ferroviario; en la zona de protección (hasta 70 m de la explanación) se requiere autorización del administrador de infraestructuras (Adif).');
     if (tipos.vivienda || tipos.industrial) add('info', 'Las distancias a viviendas/edificaciones se miden desde el paramento. Versiones antiguas de la norma exigían 30 m para eucalipto; se aplican 50 m.');
     if ((finca.exclusions || []).some((e) => e.kind === 'line')) add('info', 'Líneas eléctricas: ITC-LAT 07 §5.12.1 (RD 223/2008) exige distancia de seguridad entre conductores y arbolado a su máximo desarrollo (Dadd+Del, mín. 2 m). El eucalipto alcanza gran altura: usa un buffer amplio y consulta con la compañía.');
-    finca.edges.forEach((e, i) => {
+    runs().forEach((r, ri) => {
+      const e = finca.edges[r.edges[0]];
       if (e.vecino !== null && e.vecino !== '' && e.vecino !== undefined && prep) {
         const base = norm[e.tipo][PF.groupKey(finca.params.core)];
-        if (+e.vecino < base) add('info', 'Lindero ' + (i + 1) + ': la fila vecina está a ' + e.vecino + ' m, por debajo del mínimo legal (' + base + ' m). Se aplica el mínimo legal.');
+        if (+e.vecino < base) add('info', 'Lindero ' + (ri + 1) + ': la fila vecina está a ' + e.vecino + ' m, por debajo del mínimo legal (' + base + ' m). Se aplica el mínimo legal.');
       }
     });
     if (prep && !res.total) add('warn', 'No cabe ningún árbol con las distancias, franjas y exclusiones actuales.');
@@ -894,36 +1200,53 @@ details>*:not(summary){margin-bottom:6px}
       '<div class="g2"><div><label>Uso anterior</label><select data-bind="uso">' + optsObj(USOS, finca.uso, (v) => v) + '</select></div>' +
       '<div><label>Suelo</label><select data-bind="suelo">' + optsObj(SUELOS, finca.suelo, (v) => v) + '</select></div></div>' +
       '<label class="chk"><input type="checkbox" data-bind="natura"' + (finca.natura ? ' checked' : '') + '> Red Natura / espacio protegido</label></details>' +
-      '<div class="g2e"><div><label>Máx. linderos (simplifica el contorno de SIGPAC)</label><input type="number" min="3" max="60" step="1" inputmode="numeric" data-bind="maxEdges" value="' + val(finca.maxEdges) + '"></div><button class="btn sec" data-act="resimp" style="width:auto;align-self:end">Simplificar</button></div>' +
+      '<div class="g2e"><div><label>Máx. vértices del contorno (SIGPAC)</label><input type="number" min="4" max="300" step="1" inputmode="numeric" data-bind="maxEdges" value="' + val(finca.maxEdges) + '"></div><button class="btn sec" data-act="resimp" style="width:auto;align-self:end">Simplificar</button></div>' +
       '<div class="g2"><button class="btn sec" data-act="fit">Ver finca</button><button class="btn sec" data-act="save-center">Fijar centro de inicio</button></div>';
   }
 
   function tabLinderos() {
     if (!finca.ring) return '<div class="muted">Elige primero la parcela en el mapa SIGPAC (pestaña Finca).</div>';
-    const st = PF.stats(finca.ring);
-    return '<div class="muted">' + finca.edges.length + ' linderos. Por defecto todo es eucalipto. Marca &#x1F333; en los linderos que llevan frondosas (' + (+finca.params.rows || 0) + ' fila/s, ajustable en Matriz). Pulsa el número (o el lado en el mapa) para elegir la especie y la distancia de la fila vecina.</div>' +
-      '<div class="g2"><button class="btn sec" data-act="fr-all">&#x1F333; Frondosas en todos</button><button class="btn sec" data-act="fr-none">Solo eucalipto</button></div>' +
-      finca.edges.map((e, i) => {
-        const n = norm[e.tipo], col = (L[e.tipo] || L.libre).color;
-        return '<div class="erow"><div class="e1"><button class="badge" style="background:' + col + '" data-act="hl" data-i="' + i + '">' + (i + 1) + '</button><span class="elen">' + st.lengths[i].toFixed(0) + ' m</span>' +
-          '<select data-edge="' + i + ':tipo">' + optsObj(L, e.tipo, (v) => v.label) + '</select>' +
-          '<label class="efr"><input type="checkbox" data-edge="' + i + ':franja"' + (e.franja ? ' checked' : '') + '>&#x1F333;</label></div>' +
-          (i === openEdge ? '<div class="e2"><div class="g2"><div><label>Dist. fila vecina (m)</label><input type="number" step="any" min="0" inputmode="decimal" data-edge="' + i + ':vecino" value="' + val(e.vecino) + '" placeholder="opcional"></div>' +
-            '<div><label>Árbol de este lindero (si &#x1F333; marcado)</label><select data-edge="' + i + ':especie">' + optsObj(S, e.especie, (v) => v.name) + '</select></div></div>' +
-            '<div class="muted">Mínimo legal: frondosa ' + n.fr + ' m · eucalipto/otras ' + n.resto + ' m</div></div>' : '') + '</div>';
+    const R = runs(), arbSel = (sel) => ARB().map((x) => '<option value="' + x[0] + '"' + (x[0] === sel ? ' selected' : '') + '>' + esc(x[1]) + '</option>').join('');
+    return '<div class="muted">' + R.length + ' lindero' + (R.length === 1 ? '' : 's') + ' (cada tramo continuo con el mismo tipo es uno solo). Usa «Definir tramo» para marcar en el mapa dónde está el río, la pista, la carretera o el vecino.</div>' +
+      '<button class="btn" data-act="tramo">&#x2702;&#xFE0F; Definir tramo en el mapa</button>' +
+      '<div class="g2"><div><label>Árbol en TODOS los límites</label><select data-global="arbol"><option value="">— elegir —</option>' + arbSel(edgeArb(finca.edges[0]) === 'euc' && finca.edges.every((x) => !x.franja) ? 'euc' : '') + '</select></div>' +
+      '<div><label>Filas de frondosas en el límite</label><input type="number" step="1" min="0" inputmode="numeric" data-bind="params.rows" value="' + val(finca.params.rows) + '"></div></div>' +
+      R.map((r, ri) => {
+        const e = finca.edges[r.edges[0]], n = norm[e.tipo], col = (L[e.tipo] || L.libre).color;
+        return '<div class="erow"><div class="e1"><button class="badge" style="background:' + col + '" data-act="hl" data-i="' + ri + '">' + (ri + 1) + '</button><span class="elen">' + r.len.toFixed(0) + ' m</span>' +
+          '<select data-run="' + ri + ':tipo">' + optsObj(L, e.tipo, (v) => v.label) + '</select>' +
+          '<select data-run="' + ri + ':arbol">' + arbSel(edgeArb(e)) + '</select></div>' +
+          (ri === openEdge ? '<div class="e2"><div><label>Dist. fila del vecino (m), opcional</label><input type="number" step="any" min="0" inputmode="decimal" data-run="' + ri + ':vecino" value="' + val(e.vecino) + '" placeholder="si ≥ mínimo legal, se usa"></div>' +
+            '<div class="muted">Mínimo legal: frondosa ' + n.fr + ' m · eucalipto/otras ' + n.resto + ' m · ' + r.edges.length + ' lado(s) del contorno</div></div>' : '') + '</div>';
       }).join('');
   }
 
   function tabMatriz() {
     const p = finca.params;
-    const inp = (k, lab, step) => '<div><label>' + lab + '</label><input type="number" step="' + (step || 'any') + '" inputmode="decimal" data-bind="params.' + k + '" value="' + val(p[k]) + '"></div>';
-    return '<div class="g2">' + inp('sx', 'Marco X (m)') + inp('sy', 'Marco Y (m)') + '</div>' +
-      '<div class="g2">' + inp('angle', 'Ángulo de la matriz (°)') + inp('rows', 'Filas de frondosas en borde', 1) + '</div>' +
-      '<div class="g2">' + inp('shU', 'Desplazamiento X (m)') + inp('shV', 'Desplazamiento Y (m)') + '</div>' +
-      '<div><label>Especie principal (núcleo)</label><select data-bind="params.core">' + optsObj({ nitens: S.nitens, globulus: S.globulus }, p.core, (v) => v.name) + '</select></div>' +
-      '<div class="g2"><button class="btn" data-act="optimize">Optimizar ángulo</button><button class="btn sec" data-act="recalc">Recalcular</button></div>' +
-      '<div class="g2"><button class="btn sec" data-act="anchor-gps">Anclar en mi posición</button><button class="btn sec" data-act="anchor-map">Anclar tocando el mapa</button></div>' +
-      (p.anchor ? '<button class="btn danger" data-act="anchor-clear">Quitar anclaje (la matriz vuelve al centro)</button>' : '') +
+    const STEP = 0.25;
+    const inp = (k, lab, step) => '<div><label>' + lab + '</label><div class="stp"><button class="mini" data-act="step" data-k="' + k + '" data-d="-' + STEP + '">&#x2212;</button><input type="number" step="' + (step || STEP) + '" inputmode="decimal" data-bind="params.' + k + '" value="' + val(p[k]) + '"><button class="mini" data-act="step" data-k="' + k + '" data-d="' + STEP + '">+</button></div></div>';
+    const arbs = finca.edges.map(edgeArb), uniq = arbs.filter((x, i) => arbs.indexOf(x) === i);
+    const cur = uniq.length === 1 ? uniq[0] : 'mixto';
+    const plant = '<div><label>Plantación</label><select data-global="arbol">' +
+      (cur === 'mixto' ? '<option value="" selected>Mixta (distinta por lindero)</option>' : '') +
+      ARB().map((x) => '<option value="' + x[0] + '"' + (x[0] === cur ? ' selected' : '') + '>' + (x[0] === 'euc' ? 'Solo eucalipto (sin frondosas)' : 'Eucalipto + ' + esc(x[1]).toLowerCase() + ' en los límites') + '</option>').join('') + '</select></div>';
+    const man = p.opt === 'manual';
+    const optSel = '<div><label>Orientación y posición de la matriz</label><select data-bind="params.opt">' +
+      '<option value="auto"' + (p.opt === 'auto' ? ' selected' : '') + '>Automática: máximo de árboles</option>' +
+      '<option value="fijo"' + (p.opt === 'fijo' ? ' selected' : '') + '>Ángulo fijo; posición automática (máx.)</option>' +
+      '<option value="manual"' + (p.opt === 'manual' ? ' selected' : '') + '>Manual (ángulo y desplazamiento)</option></select></div>';
+    return '<div class="g2"><div><label>Eucalipto</label><select data-bind="params.core">' + optsObj({ nitens: S.nitens, globulus: S.globulus }, p.core, (v) => v.name) + '</select></div>' + inp('rows', 'Filas de frondosas en límite', 1) + '</div>' +
+      plant +
+      '<div class="g2">' + inp('sx', 'Marco X (m)') + inp('sy', 'Marco Y (m)') + '</div>' +
+      optSel +
+      '<div class="g2"><div><label>Ángulo (°)' + (p.opt === 'auto' ? ' · óptimo calculado' : '') + '</label><input type="number" step="0.5" inputmode="decimal" data-bind="params.angle" value="' + val(p.angle) + '"' + (p.opt === 'auto' ? ' disabled' : '') + '></div><div></div></div>' +
+      (man ? '<div class="g2">' + inp('shU', 'Desplazamiento X (m)') + inp('shV', 'Desplazamiento Y (m)') + '</div>' +
+        '<div class="g2"><button class="btn sec" data-act="anchor-gps">Anclar en mi posición</button><button class="btn sec" data-act="anchor-map">Anclar tocando el mapa</button></div>' +
+        (p.anchor ? '<button class="btn danger" data-act="anchor-clear">Quitar anclaje</button>' : '') : '') +
+      '<details open><summary>Árboles a mano (' + (finca.manual.length) + ' añadidos · ' + (finca.removed.length) + ' quitados)</summary>' +
+      '<div class="g2"><button class="btn" data-act="tt-add">&#xFF0B; Añadir árboles</button><button class="btn sec" data-act="tt-del">&#xFF0D; Quitar árboles</button></div>' +
+      '<div class="g2e"><div><label>Distancia mínima entre árboles (m)</label><div class="stp"><button class="mini" data-act="step" data-k="dmin" data-d="-0.25">&#x2212;</button><input type="number" step="0.25" inputmode="decimal" data-bind="params.dmin" value="' + val(p.dmin) + '"><button class="mini" data-act="step" data-k="dmin" data-d="0.25">+</button></div></div><button class="btn" data-act="fill" style="width:auto;align-self:end">Rellenar huecos</button></div>' +
+      '<button class="btn danger" data-act="clear-manual">Borrar árboles manuales/rellenos y restaurar quitados</button></details>' +
       '<div id="counts"></div>' +
       '<details><summary>Exclusiones y subzonas</summary>' +
       '<div class="g2"><button class="btn sec" data-act="excl-poly">Zona excluida</button><div class="g2e"><button class="btn sec" data-act="excl-line">Línea + buffer</button><input id="buf" type="number" value="15" min="1" style="width:70px" title="Buffer (m)"></div></div>' +
@@ -960,12 +1283,14 @@ details>*:not(summary){margin-bottom:6px}
     const openD = [].slice.call(document.querySelectorAll('#tab-content details[open] > summary')).map((x) => x.textContent);
     $('#tab-content').innerHTML = t();
     document.querySelectorAll('#tab-content details').forEach((d) => { if (openD.indexOf(d.firstChild.textContent) >= 0) d.open = true; });
-    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('act', sheetOpen && b.dataset.tab === tab));
+    document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('act', (sheetOpen && b.dataset.tab === tab) || (!!ms && b.dataset.tab === 'medir')));
     $('#sheet-title').textContent = TITLES[tab];
     refreshDynamic();
   }
   $('#tabs').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.tab === 'medir') { if (onList) return; if (ms) endMeasure(); else startMeasure(); return; }
+    if (ms) endMeasure(); if (tt) endTrees(); if (tr) endTramo();
     if (sheetOpen && tab === b.dataset.tab) closeSheet(); else openSheet(b.dataset.tab);
   });
   $('#sheet-x').onclick = closeSheet;
@@ -995,6 +1320,14 @@ details>*:not(summary){margin-bottom:6px}
       setPath(finca, t.dataset.bind, v);
       if (t.dataset.bind === 'concello') { renderTab(); }
       recalc();
+    } else if (t.dataset.run) {
+      const a = t.dataset.run.split(':'), R = runs()[+a[0]], f = a[1]; if (!R) return;
+      R.edges.forEach((i) => { const e = finca.edges[i]; if (f === 'arbol') { if (v === 'euc') e.franja = false; else { e.franja = true; e.especie = v; } } else e[f] = v; });
+      recalc(); if (f !== 'vecino') { openEdge = -1; renderTab(); }
+    } else if (t.dataset.global) {
+      if (!v) return;
+      finca.edges.forEach((e) => { if (v === 'euc') e.franja = false; else { e.franja = true; e.especie = v; } });
+      recalc(); renderTab(); toast(v === 'euc' ? 'Todos los límites con eucalipto' : 'Todos los límites con ' + S[v].name);
     } else if (t.dataset.edge) {
       const a = t.dataset.edge.split(':'), i = +a[0], f = a[1];
       finca.edges[i][f] = v;
@@ -1068,15 +1401,17 @@ details>*:not(summary){margin-bottom:6px}
         break;
       }
       case 'save-center': if (mapReady) { const c = map.getCenter(); store.center = [c.lng, c.lat]; try { localStorage.setItem(LS, JSON.stringify(store)); } catch (er) { /* */ } toast('Centro de inicio guardado'); } break;
-      case 'hl':
-        openEdge = openEdge === i ? -1 : i; renderTab();
-        hlIdx = i; refreshMap(); clearTimeout(hlT); hlT = setTimeout(() => { hlIdx = -1; refreshMap(); }, 3000);
-        if (mapReady) { const p = finca.ring[i], q = finca.ring[(i + 1) % finca.ring.length]; map.easeTo({ center: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] }); }
+      case 'hl': openEdge = openEdge === i ? -1 : i; renderTab(); flashRun(i);
+        if (mapReady) { const r = runs()[i]; if (r) { const p = finca.ring[r.label], q = finca.ring[(r.label + 1) % finca.ring.length]; map.easeTo({ center: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] }); } }
         break;
+      case 'tramo': startTramo(); break;
+      case 'step': { const k = b.dataset.k, d = +b.dataset.d, cur = num(finca.params[k], 0); let v = Math.round((cur + d) / 0.25) * 0.25; if (k === 'sx' || k === 'sy' || k === 'dmin') v = Math.max(0.5, v); if (k === 'rows') v = Math.max(0, Math.round(cur + Math.sign(d))); finca.params[k] = +v.toFixed(2); recalc(); renderTab(); break; }
+      case 'tt-add': startTrees('add'); break;
+      case 'tt-del': startTrees('del'); break;
+      case 'fill': fillGaps(); break;
+      case 'clear-manual': finca.manual = []; finca.removed = []; recalc(); renderTab(); toast('Árboles manuales y quitados restaurados'); break;
       case 'recalc': recalc(); break;
-      case 'fr-all': finca.edges.forEach((e) => { e.franja = true; }); recalc(); renderTab(); break;
-      case 'fr-none': finca.edges.forEach((e) => { e.franja = false; }); recalc(); renderTab(); break;
-      case 'resimp': if (!finca.ringOrig) { toast('Vuelve a elegir la parcela en SIGPAC'); break; } finca.maxEdges = Math.max(3, Math.min(60, Math.round(num(finca.maxEdges, 10)))); finca.ring = simplifyRing(finca.ringOrig, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1; recalc(); renderTab(); toast(finca.ring.length + ' linderos (se han reiniciado sus tipos)'); break;
+      case 'resimp': if (!finca.ringOrig) { toast('Vuelve a elegir la parcela en SIGPAC'); break; } finca.maxEdges = Math.max(4, Math.min(300, Math.round(num(finca.maxEdges, 80)))); finca.ring = simplifyRing(finca.ringOrig, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1; recalc(); renderTab(); toast(finca.ring.length + ' vértices (se han reiniciado los linderos)'); break;
       case 'optimize': {
         if (!prep) { toast('Dibuja o importa una finca primero'); break; }
         toast('Calculando mejor ángulo…', 8000);
@@ -1101,62 +1436,192 @@ details>*:not(summary){margin-bottom:6px}
     }
   });
 
-  /* ---------- informe A4 ---------- */
-  function openReport() {
+  /* ---------- informe A4 (PDF) ---------- */
+  function wrapTxt(t, n) {
+    const out = []; let cur = '';
+    String(t).split(/\s+/).forEach((w) => { if ((cur + ' ' + w).trim().length > n && cur) { out.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); });
+    if (cur) out.push(cur); return out;
+  }
+  function makePDF(pages, wpt, hpt) {
+    const enc = new TextEncoder(), chunks = []; let len = 0; const offs = [];
+    const put = (x) => { const b = typeof x === 'string' ? enc.encode(x) : x; chunks.push(b); len += b.length; };
+    const obj = (n, body) => { offs[n] = len; put(n + ' 0 obj\n'); put(body); put('\nendobj\n'); };
+    put('%PDF-1.4\n');
+    const np = pages.length, kids = pages.map((_, i) => (3 + i * 3) + ' 0 R').join(' ');
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    obj(2, '<< /Type /Pages /Kids [' + kids + '] /Count ' + np + ' >>');
+    pages.forEach((p, i) => {
+      const a = 3 + i * 3, im = a + 1, ct = a + 2, cs = 'q ' + wpt.toFixed(2) + ' 0 0 ' + hpt.toFixed(2) + ' 0 0 cm /Im0 Do Q';
+      obj(a, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + wpt.toFixed(2) + ' ' + hpt.toFixed(2) + '] /Resources << /XObject << /Im0 ' + im + ' 0 R >> >> /Contents ' + ct + ' 0 R >>');
+      offs[im] = len; put(im + ' 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + p.w + ' /Height ' + p.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + p.jpeg.length + ' >>\nstream\n'); put(p.jpeg); put('\nendstream\nendobj\n');
+      obj(ct, '<< /Length ' + cs.length + ' >>\nstream\n' + cs + '\nendstream');
+    });
+    const n = 3 + np * 3, xr = len;
+    put('xref\n0 ' + n + '\n0000000000 65535 f \n');
+    for (let i = 1; i < n; i++) put(String(offs[i]).padStart(10, '0') + ' 00000 n \n');
+    put('trailer\n<< /Size ' + n + ' /Root 1 0 R >>\nstartxref\n' + xr + '\n%%EOF');
+    const out = new Uint8Array(len); let o = 0; chunks.forEach((c) => { out.set(c, o); o += c.length; }); return out;
+  }
+  function svgToJpeg(svg, PW, PH) {
+    const k = 200 / 25.4, cw = Math.round(PW * k), ch = Math.round(PH * k);
+    return new Promise((ok, ko) => {
+      const img = new Image(), url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+      img.onload = () => {
+        const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; const cx = cv.getContext('2d');
+        cx.fillStyle = '#fff'; cx.fillRect(0, 0, cw, ch); cx.drawImage(img, 0, 0, cw, ch); URL.revokeObjectURL(url);
+        const b64 = cv.toDataURL('image/jpeg', 0.93).split(',')[1], bin = atob(b64), u = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+        ok({ jpeg: u, w: cw, h: ch });
+      };
+      img.onerror = () => ko(new Error('no se pudo dibujar la página')); img.src = url;
+    });
+  }
+  async function openReport() {
     if (!prep || !res.total) { toast('No hay árboles que mostrar'); return; }
+    toast('Generando PDF…', 20000);
+    // relieve para el isométrico
+    if (!mdt && typeof fetch === 'function') {
+      try { const B = mdtBBox(); mdt = await Promise.race([fetchMDT(B.bb), new Promise((_, r) => setTimeout(() => r(new Error('tiempo')), 9000))]); mdtBox = B.key; demCache.clear(); } catch (e) { mdt = null; }
+    }
     const ring = prep.ring;
     let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
     ring.forEach((p) => { minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]); miny = Math.min(miny, p[1]); maxy = Math.max(maxy, p[1]); });
-    const W = 190, H = 190, w = maxx - minx, h = maxy - miny;
-    const dens = [100, 200, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 30000];
-    const den = dens.find((d) => w * 1000 / d <= W - 10 && h * 1000 / d <= H - 10) || 50000, k = 1000 / den;
-    const X = (x) => ((W - w * k) / 2 + (x - minx) * k).toFixed(2), Y = (y) => ((H - h * k) / 2 + (maxy - y) * k).toFixed(2);
+    const w = maxx - minx, h = maxy - miny, land = w > h * 1.15;
+    const PW = land ? 297 : 210, PH = land ? 210 : 297, M = 8;
+    const MW = PW - 2 * M, MY = 17, MH = land ? 148 : 236;
+    const dens = [100, 150, 200, 250, 300, 400, 500, 600, 750, 800, 1000, 1250, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 30000];
+    const den = dens.find((d) => w * 1000 / d <= MW - 8 && h * 1000 / d <= MH - 8) || 50000, k = 1000 / den;
+    const X = (x) => ((MW - w * k) / 2 + (x - minx) * k).toFixed(2), Y = (y) => ((MH - h * k) / 2 + (maxy - y) * k).toFixed(2);
     const path = (pts) => 'M' + pts.map((p) => X(p[0]) + ',' + Y(p[1])).join('L') + 'Z';
     const rr = Math.max(0.35, Math.min(finca.params.sx, finca.params.sy) * k * 0.3);
-    let svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="190mm" height="190mm"><defs><pattern id="h" width="2" height="2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="2" stroke="#c62828" stroke-width="0.4"/></pattern></defs>';
-    svg += '<rect width="' + W + '" height="' + H + '" fill="#fff" stroke="#888" stroke-width="0.3"/>';
-    svg += '<path d="' + path(ring) + '" fill="#f1f8e9" stroke="none"/>';
-    prep.zones.forEach((z) => { svg += '<path d="' + path(z.pts) + '" fill="' + S[z.sp].color + '" fill-opacity="0.18" stroke="none"/>'; });
+    const FS = 'font-family="Arial,Helvetica,sans-serif"';
+    const head = (t) => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + PW + ' ' + PH + '" width="' + (PW * 7.874).toFixed(0) + '" height="' + (PH * 7.874).toFixed(0) + '" ' + FS + '><rect width="' + PW + '" height="' + PH + '" fill="#fff"/>' + t;
+    const st = PF.stats(finca.ring), fm = ferradoM2(), ec = econ(), hasEcon = ec.cost > 0 || ec.inc > 0;
+    const title = '<text x="' + M + '" y="9" font-size="5.2" font-weight="bold">' + esc(finca.name) + ' — Plan de plantación</text>' +
+      '<text x="' + M + '" y="14.2" font-size="3.3" fill="#333">' + esc(C[finca.concello].name) + ' · ' + (st.area / 10000).toFixed(2) + ' ha' + (fm ? ' (' + (st.area / fm).toFixed(1) + ' ferrados de ' + fm + ' m²)' : '') + ' · Perímetro ' + Math.round(st.perimeter) + ' m · Marco ' + finca.params.sx + '×' + finca.params.sy + ' m · Ángulo ' + (+finca.params.angle).toFixed(1) + '° · ' + new Date().toLocaleDateString('es-ES') + '</text>';
+    const north = (x, y, s, ang) => '<g transform="translate(' + x + ',' + y + ') rotate(' + (ang || 0) + ') scale(' + s + ')"><path d="M0,-9 L4,3 L0,0 L-4,3 Z" fill="#000"/><text x="0" y="9.5" font-size="4.4" text-anchor="middle" font-weight="bold" transform="rotate(' + (-(ang || 0)) + ' 0 6)">N</text></g>';
+
+    /* ---- página 1: plano ---- */
+    let m = '<defs><pattern id="h" width="2" height="2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="2" stroke="#c62828" stroke-width="0.4"/></pattern><clipPath id="cm"><rect width="' + MW + '" height="' + MH + '"/></clipPath></defs>';
+    m += '<g transform="translate(' + M + ',' + MY + ')"><rect width="' + MW + '" height="' + MH + '" fill="#fff" stroke="#555" stroke-width="0.35"/><g clip-path="url(#cm)">';
+    m += '<path d="' + path(ring) + '" fill="#f1f8e9" stroke="none"/>';
+    prep.zones.forEach((z) => { m += '<path d="' + path(z.pts) + '" fill="' + S[z.sp].color + '" fill-opacity="0.18" stroke="none"/>'; });
     prep.excl.forEach((e) => {
-      if (e.kind === 'poly') svg += '<path d="' + path(e.pts) + '" fill="url(#h)" stroke="#c62828" stroke-width="0.3"/>';
+      if (e.kind === 'poly') m += '<path d="' + path(e.pts) + '" fill="url(#h)" stroke="#c62828" stroke-width="0.3"/>';
       else {
-        bufferXY(e.pts, e.buf).forEach((r) => { svg += '<path d="' + path(r) + '" fill="url(#h)" stroke="none"/>'; });
-        svg += '<path d="M' + e.pts.map((p) => X(p[0]) + ',' + Y(p[1])).join('L') + '" fill="none" stroke="#c62828" stroke-width="0.4" stroke-dasharray="2,1"/>';
+        bufferXY(e.pts, e.buf).forEach((r) => { m += '<path d="' + path(r) + '" fill="url(#h)" stroke="none"/>'; });
+        m += '<path d="M' + e.pts.map((p) => X(p[0]) + ',' + Y(p[1])).join('L') + '" fill="none" stroke="#c62828" stroke-width="0.4" stroke-dasharray="2,1"/>';
       }
     });
-    res.trees.forEach((t) => { svg += '<circle cx="' + X(t.x) + '" cy="' + Y(t.y) + '" r="' + rr.toFixed(2) + '" fill="' + S[t.sp].color + '" stroke="#fff" stroke-width="0.08"/>'; });
+    res.trees.forEach((t) => { m += '<circle cx="' + X(t.x) + '" cy="' + Y(t.y) + '" r="' + rr.toFixed(2) + '" fill="' + S[t.sp].color + '" stroke="#fff" stroke-width="0.08"/>'; });
+    const lbl = {}; runs().forEach((r, ri) => { lbl[r.label] = ri + 1; });
     ring.forEach((p, i) => {
       const q = ring[(i + 1) % ring.length];
-      svg += '<line x1="' + X(p[0]) + '" y1="' + Y(p[1]) + '" x2="' + X(q[0]) + '" y2="' + Y(q[1]) + '" stroke="' + (L[finca.edges[i].tipo] || L.libre).color + '" stroke-width="0.7"/>';
-      svg += '<text x="' + ((+X(p[0]) + +X(q[0])) / 2).toFixed(2) + '" y="' + ((+Y(p[1]) + +Y(q[1])) / 2).toFixed(2) + '" font-size="3" fill="#000" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + (i + 1) + '</text>';
+      m += '<line x1="' + X(p[0]) + '" y1="' + Y(p[1]) + '" x2="' + X(q[0]) + '" y2="' + Y(q[1]) + '" stroke="' + (L[finca.edges[i].tipo] || L.libre).color + '" stroke-width="0.8"/>';
+      if (lbl[i] !== undefined) m += '<text x="' + ((+X(p[0]) + +X(q[0])) / 2).toFixed(2) + '" y="' + ((+Y(p[1]) + +Y(q[1])) / 2).toFixed(2) + '" font-size="3.6" font-weight="bold" fill="#000" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.7">' + lbl[i] + '</text>';
     });
-    // escala gráfica
+    (finca.cotas || []).forEach((c) => {
+      const a = prep.pj.toXY(c.a[0], c.a[1]), b = prep.pj.toXY(c.b[0], c.b[1]);
+      m += '<line x1="' + X(a[0]) + '" y1="' + Y(a[1]) + '" x2="' + X(b[0]) + '" y2="' + Y(b[1]) + '" stroke="#d81b60" stroke-width="0.35"/><text x="' + ((+X(a[0]) + +X(b[0])) / 2).toFixed(2) + '" y="' + ((+Y(a[1]) + +Y(b[1])) / 2 - 1).toFixed(2) + '" font-size="3" fill="#d81b60" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + fmtM(distLL(c.a, c.b)) + ' m</text>';
+    });
+    m += '</g>';
     const Ls = [5, 10, 20, 50, 100, 200, 500].find((v) => v * k >= 15 && v * k <= 60) || 50, sl = Ls * k;
-    svg += '<g transform="translate(8,' + (H - 8) + ')"><rect x="0" y="-1.5" width="' + (sl / 2).toFixed(1) + '" height="1.5" fill="#000"/><rect x="' + (sl / 2).toFixed(1) + '" y="-1.5" width="' + (sl / 2).toFixed(1) + '" height="1.5" fill="#fff" stroke="#000" stroke-width="0.2"/><text x="0" y="-3" font-size="3">0</text><text x="' + sl.toFixed(1) + '" y="-3" font-size="3" text-anchor="end">' + Ls + ' m</text></g>';
-    // norte
-    svg += '<g transform="translate(' + (W - 12) + ',16)"><path d="M0,-9 L4,3 L0,0 L-4,3 Z" fill="#000"/><text x="0" y="9" font-size="4" text-anchor="middle" font-weight="bold">N</text></g></svg>';
+    m += '<g transform="translate(5,' + (MH - 5) + ')"><rect x="0" y="-1.6" width="' + (sl / 2).toFixed(1) + '" height="1.6" fill="#000"/><rect x="' + (sl / 2).toFixed(1) + '" y="-1.6" width="' + (sl / 2).toFixed(1) + '" height="1.6" fill="#fff" stroke="#000" stroke-width="0.2"/><text x="0" y="-3" font-size="3.2">0</text><text x="' + sl.toFixed(1) + '" y="-3" font-size="3.2" text-anchor="end">' + Ls + ' m</text><text x="' + (sl + 3).toFixed(1) + '" y="0" font-size="3.2">Escala 1:' + den + ' (A4' + (land ? ' apaisado' : '') + ')</text></g>';
+    m += north(MW - 10, 14, 1.2) + '</g>';
+    // pie del mapa (letra +30%)
+    const FY = MY + MH + 6;
+    let pie = '<text x="' + M + '" y="' + FY + '" font-size="3.9" font-weight="bold">Leyenda</text>';
+    let ly = FY + 5.5;
+    Object.keys(S).filter((s) => res.counts[s]).forEach((s) => {
+      pie += '<circle cx="' + (M + 2) + '" cy="' + (ly - 1.1) + '" r="1.9" fill="' + S[s].color + '" stroke="#333" stroke-width="0.25"/><text x="' + (M + 6) + '" y="' + ly + '" font-size="3.4">' + esc(S[s].name) + '</text><text x="' + (M + 62) + '" y="' + ly + '" font-size="3.4" font-weight="bold" text-anchor="end">' + res.counts[s] + '</text>';
+      ly += 4.8;
+    });
+    pie += '<text x="' + (M + 6) + '" y="' + ly + '" font-size="3.4" font-weight="bold">Total</text><text x="' + (M + 62) + '" y="' + ly + '" font-size="3.4" font-weight="bold" text-anchor="end">' + res.total + '</text>';
+    const usedT = []; finca.edges.forEach((e) => { if (usedT.indexOf(e.tipo) < 0) usedT.push(e.tipo); });
+    const lx = M + 74; let ky = FY;
+    pie += '<text x="' + lx + '" y="' + ky + '" font-size="3.9" font-weight="bold">Linderos</text>'; ky += 5.5;
+    usedT.slice(0, 7).forEach((t) => { const d = L[t] || L.libre; pie += '<line x1="' + lx + '" y1="' + (ky - 1.1) + '" x2="' + (lx + 5) + '" y2="' + (ky - 1.1) + '" stroke="' + d.color + '" stroke-width="1"/><text x="' + (lx + 7) + '" y="' + ky + '" font-size="3.4">' + esc(d.label.length > 34 ? d.label.slice(0, 33) + '…' : d.label) + '</text>'; ky += 4.8; });
+    if (prep.excl.length) { pie += '<rect x="' + lx + '" y="' + (ky - 2.4) + '" width="5" height="2.6" fill="url(#h)" stroke="#c62828" stroke-width="0.25"/><text x="' + (lx + 7) + '" y="' + ky + '" font-size="3.4">Exclusión / zona sin plantar</text>'; ky += 4.8; }
+    const ex = land ? PW - M - 70 : M; let ey = land ? FY : Math.max(ly, ky) + 3;
+    const nota = 'Lindero numerado en plano. Distancias según Lei 7/2012 (art. 68, anexo II) salvo ajustes del usuario. Documento de planificación; verificar con las administraciones competentes.';
+    if (land) {
+      if (hasEcon) { pie += '<text x="' + ex + '" y="' + ey + '" font-size="3.9" font-weight="bold">Economía estimada</text><text x="' + ex + '" y="' + (ey + 5.5) + '" font-size="3.4">Coste: ' + eur(ec.cost) + '</text><text x="' + ex + '" y="' + (ey + 10.3) + '" font-size="3.4">Ingreso: ' + eur(ec.inc) + '</text>'; }
+      wrapTxt(nota, 48).forEach((l, i) => { pie += '<text x="' + ex + '" y="' + (ey + 18 + i * 4) + '" font-size="2.8" fill="#555">' + esc(l) + '</text>'; });
+    } else {
+      wrapTxt(nota, 120).forEach((l, i) => { pie += '<text x="' + M + '" y="' + (PH - 9 + i * 3.6) + '" font-size="2.8" fill="#555">' + esc(l) + '</text>'; });
+    }
+    const page1 = head(title + m + pie) + '</svg>';
 
-    const st = PF.stats(finca.ring), fm = ferradoM2();
-    const legend = Object.keys(S).filter((s) => res.counts[s]).map((s) => '<tr><td><span class="d" style="background:' + S[s].color + '"></span></td><td>' + esc(S[s].name) + '</td><td class="r">' + res.counts[s] + '</td></tr>').join('');
-    const ec = econ(), hasEcon = ec.cost > 0 || ec.inc > 0;
-    const wl = warnings().filter((x) => x.l !== 'info').map((x) => '<li>' + esc(x.t) + '</li>').join('');
-    const html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Informe ' + esc(finca.name) + '</title><style>' +
-      '@page{size:A4 portrait;margin:10mm}body{font:11px Arial,sans-serif;color:#000;margin:0}h1{font-size:15px;margin:0 0 2px}' +
-      '.sub{color:#444;margin-bottom:4px}svg{display:block}table{border-collapse:collapse}td{padding:1px 6px}.r{text-align:right;font-weight:bold}' +
-      '.d{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #555}.cols{display:flex;gap:16px;margin-top:6px;align-items:flex-start}' +
-      'ul{margin:2px 0 0 14px;padding:0;font-size:9px}.btn{position:fixed;top:6px;right:6px}@media print{.btn{display:none}}</style></head><body>' +
-      '<button class="btn" onclick="print()">Imprimir</button>' +
-      '<h1>' + esc(finca.name) + ' — Plan de plantación</h1>' +
-      '<div class="sub">' + esc(C[finca.concello].name) + ' · ' + (st.area / 10000).toFixed(2) + ' ha' + (fm ? ' (' + (st.area / fm).toFixed(1) + ' ferrados de ' + fm + ' m²)' : '') + ' · Perímetro ' + Math.round(st.perimeter) + ' m · Marco ' + finca.params.sx + '×' + finca.params.sy + ' m · Ángulo ' + (+finca.params.angle).toFixed(1) + '° · Escala 1:' + den + ' (A4) · ' + new Date().toLocaleDateString('es-ES') + '</div>' +
-      svg +
-      '<div class="cols"><div><b>Leyenda</b><table>' + legend + '<tr><td></td><td><b>Total</b></td><td class="r">' + res.total + '</td></tr></table></div>' +
-      (hasEcon ? '<div><b>Economía estimada</b><br>Coste: ' + eur(ec.cost) + '<br>Ingreso: ' + eur(ec.inc) + '</div>' : '') +
-      '<div style="flex:1"><b>Avisos</b><ul>' + (wl || '<li>Sin avisos críticos.</li>') + '</ul></div></div>' +
-      '<div style="margin-top:4px;font-size:8px;color:#555">Lindero numerado en plano. Distancias según Lei 7/2012 (art. 68, anexo II) salvo ajustes del usuario. Documento de planificación; verificar con las administraciones competentes.</div>' +
-      '</body></html>';
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); setTimeout(() => { try { win.print(); } catch (er) { /* el usuario puede imprimir con el botón */ } }, 600); }
-    else { download('informe-' + slug(finca.name) + '.html', html, 'text/html'); toast('Ventana bloqueada: informe descargado como HTML (ábrelo e imprime).', 6000); }
+    /* ---- página 2: isométrico 3D ---- */
+    const pj = prep.pj, nxy = 44, cx = w / nxy, cy = h / nxy;
+    const z0 = (() => { for (let i = 0; i < ring.length; i++) { const ll = pj.toLL(ring[i][0], ring[i][1]), v = mdt ? mdtSample(ll[0], ll[1]) : null; if (v != null) return v; } return 0; })();
+    let haveZ = !!mdt && z0 !== 0;
+    const zAt = (x, y) => { if (!haveZ) return 0; const ll = pj.toLL(x, y), v = mdtSample(ll[0], ll[1]); return v == null ? z0 : v; };
+    const EXA = 1.5, T = 35 * Math.PI / 180, r2 = Math.SQRT1_2;
+    const P = (x, y, z) => [(x - y) * r2, -(((x + y) * r2) * Math.sin(T) + z * EXA * Math.cos(T))];
+    const grid = []; let zmin = Infinity, zmax = -Infinity;
+    for (let j = 0; j <= nxy; j++) { grid[j] = []; for (let i = 0; i <= nxy; i++) { const z = zAt(minx + i * cx, miny + j * cy); grid[j][i] = z; zmin = Math.min(zmin, z); zmax = Math.max(zmax, z); } }
+    // límites de la proyección
+    let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+    const ext = (p) => { bx0 = Math.min(bx0, p[0]); bx1 = Math.max(bx1, p[0]); by0 = Math.min(by0, p[1]); by1 = Math.max(by1, p[1]); };
+    ring.forEach((p) => ext(P(p[0], p[1], zAt(p[0], p[1]) - zmin)));
+    for (let j = 0; j <= nxy; j += nxy) for (let i = 0; i <= nxy; i += nxy) ext(P(minx + i * cx, miny + j * cy, grid[j][i] - zmin));
+    const IW = land ? 178 : MW;
+    let IH = land ? PH - MY - 10 : Math.max(90, Math.min(200, (by1 - by0) / (bx1 - bx0 || 1) * (IW - 10) + 24));
+    const sc = Math.min((IW - 10) / (bx1 - bx0 || 1), (IH - 10) / (by1 - by0 || 1));
+    const tx = (IW - (bx1 - bx0) * sc) / 2 - bx0 * sc, ty = (IH - (by1 - by0) * sc) / 2 - by0 * sc;
+    const Q = (x, y, z) => { const p = P(x, y, z - zmin); return [(p[0] * sc + tx).toFixed(2), (p[1] * sc + ty).toFixed(2)]; };
+    const ringQ = ring.map((p) => Q(p[0], p[1], zAt(p[0], p[1])));
+    let iso = '<defs><clipPath id="ci"><path d="M' + ringQ.map((q) => q.join(',')).join('L') + 'Z"/></clipPath><clipPath id="cb"><rect width="' + IW + '" height="' + IH + '"/></clipPath></defs>';
+    iso += '<g transform="translate(' + M + ',' + MY + ')"><rect width="' + IW + '" height="' + IH + '" fill="#fafafa" stroke="#555" stroke-width="0.35"/><g clip-path="url(#cb)">';
+    // sombra: celdas de atrás hacia delante
+    iso += '<g clip-path="url(#ci)">';
+    const cells = [];
+    for (let j = 0; j < nxy; j++) for (let i = 0; i < nxy; i++) cells.push([i, j]);
+    cells.sort((a, b) => (b[0] + b[1]) - (a[0] + a[1]));
+    cells.forEach((c) => {
+      const i = c[0], j = c[1], z00 = grid[j][i], z10 = grid[j][i + 1], z01 = grid[j + 1][i], z11 = grid[j + 1][i + 1];
+      const dzx = ((z10 + z11) - (z00 + z01)) / (2 * cx), dzy = ((z01 + z11) - (z00 + z10)) / (2 * cy);
+      const sh = haveZ ? Math.max(0, Math.min(1, 0.6 + (dzx * -0.5 + dzy * 0.6) * 1.4)) : 0.6;
+      const g = Math.round(150 + sh * 80), col = 'rgb(' + Math.round(g * 0.78) + ',' + g + ',' + Math.round(g * 0.62) + ')';
+      const xa = minx + i * cx, ya = miny + j * cy, pts = [Q(xa, ya, z00), Q(xa + cx, ya, z10), Q(xa + cx, ya + cy, z11), Q(xa, ya + cy, z01)];
+      iso += '<path d="M' + pts.map((q) => q.join(',')).join('L') + 'Z" fill="' + col + '" stroke="' + col + '" stroke-width="0.15"/>';
+    });
+    iso += '</g>';
+    prep.excl.forEach((e) => { if (e.kind === 'poly') iso += '<path d="M' + e.pts.map((p) => Q(p[0], p[1], zAt(p[0], p[1])).join(',')).join('L') + 'Z" fill="#c62828" fill-opacity="0.35" stroke="#c62828" stroke-width="0.25"/>'; });
+    const tr = res.trees.map((t) => { const z = zAt(t.x, t.y), q = Q(t.x, t.y, z); return { q: q, d: t.x + t.y, sp: t.sp }; }).sort((a, b) => b.d - a.d);
+    const tr2 = Math.max(0.45, Math.min(finca.params.sx, finca.params.sy) * sc * 0.32), th = tr2 * 2.2;
+    tr.forEach((t) => { iso += '<line x1="' + t.q[0] + '" y1="' + t.q[1] + '" x2="' + t.q[0] + '" y2="' + (t.q[1] - th).toFixed(2) + '" stroke="#5d4037" stroke-width="' + (tr2 * 0.25).toFixed(2) + '"/><circle cx="' + t.q[0] + '" cy="' + (t.q[1] - th).toFixed(2) + '" r="' + tr2.toFixed(2) + '" fill="' + S[t.sp].color + '" stroke="#fff" stroke-width="0.06"/>'; });
+    ring.forEach((p, i) => { const q = (i + 1) % ring.length; iso += '<line x1="' + ringQ[i][0] + '" y1="' + ringQ[i][1] + '" x2="' + ringQ[q][0] + '" y2="' + ringQ[q][1] + '" stroke="' + (L[finca.edges[i].tipo] || L.libre).color + '" stroke-width="0.7"/>'; });
+    iso += '</g>';
+    // norte: dirección (0,1) proyectada
+    const nv = P(0, 1, 0), nl = Math.hypot(nv[0], nv[1]), nang = Math.atan2(nv[0], -nv[1]) * 180 / Math.PI;
+    iso += north(IW - 12, 16, 1.2, nang.toFixed(1)) + '</g>';
+    let p2 = title.replace('Plan de plantación', 'Vista isométrica 3D');
+    p2 += iso;
+    // texto lateral / inferior
+    const tx0 = land ? M + IW + 8 : M, tw = land ? PW - tx0 - M : MW; let y2 = land ? MY + 4 : MY + IH + 8; const nch = Math.floor(tw / 1.75);
+    const line = (txt, fs, bold, col) => { p2 += '<text x="' + tx0 + '" y="' + y2 + '" font-size="' + fs + '"' + (bold ? ' font-weight="bold"' : '') + (col ? ' fill="' + col + '"' : '') + '>' + esc(txt) + '</text>'; y2 += fs * 1.45; };
+    line('Relieve', 3.9, true);
+    line(haveZ ? 'MDT CNIG · cota ' + Math.round(zmin) + ' – ' + Math.round(zmax) + ' m · desnivel ' + Math.round(zmax - zmin) + ' m (exagerado ×' + EXA + ')' : 'Sin datos de relieve: vista sobre terreno plano.', 3.2); y2 += 2;
+    line('Árboles: ' + res.total, 3.9, true);
+    Object.keys(S).filter((s) => res.counts[s]).forEach((s) => { p2 += '<circle cx="' + (tx0 + 2) + '" cy="' + (y2 - 1.1) + '" r="1.9" fill="' + S[s].color + '" stroke="#333" stroke-width="0.25"/><text x="' + (tx0 + 6) + '" y="' + y2 + '" font-size="3.4">' + esc(S[s].name) + ': ' + res.counts[s] + '</text>'; y2 += 4.8; });
+    y2 += 2;
+    if (hasEcon) { line('Economía estimada', 3.9, true); line('Coste: ' + eur(ec.cost) + '   Ingreso: ' + eur(ec.inc), 3.4); y2 += 2; }
+    const wl = warnings().filter((x) => x.l !== 'info');
+    line('Avisos', 3.9, true);
+    if (!wl.length) line('Sin avisos críticos.', 3.2);
+    wl.slice(0, land ? 14 : 12).forEach((x) => wrapTxt('• ' + x.t, nch).slice(0, 3).forEach((l) => line(l, 2.9)));
+    const page2 = head(p2) + '</svg>';
+
+    try {
+      const j1 = await svgToJpeg(page1, PW, PH), j2 = await svgToJpeg(page2, PW, PH);
+      const pdf = makePDF([j1, j2], PW / 25.4 * 72, PH / 25.4 * 72);
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+      a.download = 'informe-' + slug(finca.name) + '.pdf'; document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+      toast('PDF generado (' + (land ? 'apaisado' : 'vertical') + ', 2 páginas)', 4000);
+    } catch (er) { toast('Error al crear el PDF: ' + er.message, 7000); }
   }
 
   /* ---------- arranque ---------- */
