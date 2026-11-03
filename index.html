@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v0.2</title>
+<title>PLANTFINC v0.3</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -14,7 +14,10 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);height:100dvh;overflow:hidden;display:flex;flex-direction:column}
-header{background:var(--pri);color:#fff;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:center;font-weight:700;box-shadow:0 2px 4px rgba(0,0,0,.1);z-index:30;gap:8px}
+header{background:#fff;color:var(--text);padding:8px 10px;padding-top:max(8px,env(safe-area-inset-top));display:grid;grid-template-columns:1fr auto 1fr;align-items:center;font-weight:700;border-bottom:1px solid var(--border);z-index:30;gap:8px;min-height:46px}
+.hb{background:none;border:none;color:var(--pri-dark);font-size:.9rem;font-weight:600;cursor:pointer;padding:4px 6px;justify-self:start}
+#h-more{justify-self:end;font-size:1.3rem}
+.gpsChip{position:absolute;top:8px;left:8px;z-index:16;background:#fff;border:none;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.28);padding:6px 11px;font-size:.74rem;font-weight:600;cursor:pointer}
 .hdr-r{display:flex;align-items:center;gap:6px}
 .hbtn{background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:12px;padding:5px 9px;font-size:.75rem;font-weight:600;cursor:pointer}
 .hbtn.on{background:#fff;color:var(--pri-dark)}
@@ -37,7 +40,7 @@ header{background:var(--pri);color:#fff;padding:10px 14px;padding-top:max(10px,e
 .sh{display:flex;justify-content:space-between;align-items:center;padding:10px 14px 6px;border-bottom:1px solid var(--border)}
 .sh b{font-size:1rem}
 .sh button{background:#eef1f3;border:none;border-radius:50%;width:30px;height:30px;font-size:1rem;cursor:pointer}
-@media(min-width:800px){.sheet{left:10px;right:auto;width:430px;max-height:calc(100% - 80px);border-radius:14px}.tb{left:50%;right:auto;transform:translateX(-50%);width:520px;border-radius:14px 14px 0 0}}
+@media(min-width:800px){.sheet{left:10px;right:auto;width:430px;max-height:calc(100% - 80px);border-radius:14px}}
 #tab-content{padding:12px;overflow-y:auto;display:grid;gap:10px;align-content:start}
 label{font-size:.75rem;color:#555;display:block;margin-bottom:2px}
 input,select{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:1rem;background:#fff;color:var(--text)}
@@ -80,24 +83,52 @@ details{border:1px solid var(--border);border-radius:8px;padding:0 8px}
 details>summary{font-size:.8rem;font-weight:700;color:var(--pri-dark);padding:7px 0;cursor:pointer}
 details[open]>summary{border-bottom:1px solid var(--border);margin-bottom:6px}
 details>*:not(summary){margin-bottom:6px}
-@media(min-width:800px){.sheet{width:340px;max-height:calc(100% - 70px)}.tb{width:420px}}
+@media(min-width:800px){.sheet{width:340px;max-height:calc(100% - 70px)}}
+.tb{left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.sheet{bottom:calc(66px + env(safe-area-inset-bottom))}
+.maplibregl-ctrl-bottom-left,.maplibregl-ctrl-bottom-right{bottom:62px}
+.strip{top:44px}
+.vlist{position:absolute;inset:0;z-index:50;background:var(--bg);overflow-y:auto;padding:10px 10px 90px}
+.vlist .card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.12);margin-bottom:10px;overflow:hidden}
+.fin{display:flex;gap:10px;align-items:center;padding:12px;cursor:pointer}
+.ic{width:38px;height:38px;border-radius:8px;background:#e8f5e9;display:grid;place-items:center;font-size:1.3rem;flex:none}
+.fin .t{font-weight:700}.fin .s{font-size:.78rem;color:#666}
+.facts{display:flex;border-top:1px solid var(--border)}
+.facts button{flex:1;background:none;border:none;padding:9px 2px;font-size:.78rem;color:var(--pri);font-weight:600;cursor:pointer}
+.facts .rojo{color:var(--danger)}
+.last{background:var(--pri);color:#fff;border-radius:12px;padding:12px 14px;margin-bottom:10px;width:100%;border:none;text-align:left;display:block;font-weight:700;cursor:pointer;font-size:.95rem}
+.last small{display:block;font-weight:400;opacity:.9;font-size:.78rem}
+.fab{position:absolute;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:55;background:var(--pri);color:#fff;border:none;border-radius:26px;padding:13px 20px;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.35);cursor:pointer}
+.nsheet{bottom:0!important;z-index:60;max-height:85%!important}
+.nbody{padding:10px 12px;display:grid;gap:7px;overflow-y:auto}
+.empty{text-align:center;color:#777;padding:40px 10px;font-size:.9rem}
+#hmenu{right:8px;top:6px;z-index:40;min-width:180px}
 </style>
 </head>
 <body>
 <header>
-  <span id="finca-title" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">PLANTFINC</span>
-  <span class="hdr-r"><span id="gps-status" class="status-badge">GPS: esperando…</span></span>
+  <button class="hb hidden" id="h-back">&#x2039; Fincas</button>
+  <span id="finca-title" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;justify-self:center;grid-column:2;cursor:pointer">PLANTFINC</span>
+  <button class="hb hidden" id="h-more" aria-label="Más opciones">&#x22EF;</button>
 </header>
+<input type="file" id="file" accept=".json,.geojson,application/geo+json,application/json" class="hidden">
 
 <div id="app">
   <div id="map"></div>
   <div id="toast"></div>
 
+  <button class="gpsChip" id="gps-status">GPS: esperando…</button>
   <button class="strip" id="strip" aria-label="Resumen"><span id="m-area">0.00 ha</span><i>·</i><span><span id="m-ferr">—</span> ferr.</span><i>·</i><span><span id="m-trees">0</span> árb.</span></button>
 
   <div class="rbtns">
     <button class="rb" id="btn-loc" aria-label="Centrar en mi posición">&#x25CE;</button>
     <button class="rb" id="btn-lay" aria-label="Capas">&#x1F5C2;</button>
+  </div>
+  <div class="menu hidden" id="hmenu">
+    <button class="hbtn" data-act="report">&#x1F4C4; Informe A4</button>
+    <button class="hbtn" data-act="export">&#x1F4E4; Exportar GeoJSON</button>
+    <button class="hbtn" data-act="save-center">&#x1F4CD; Fijar centro de inicio</button>
+    <button class="hbtn" data-act="del" style="color:var(--danger)">&#x1F5D1; Eliminar finca</button>
   </div>
   <div class="menu hidden" id="menu">
     <button class="hbtn" id="btn-base">Mapa: OpenStreetMap</button>
@@ -119,6 +150,20 @@ details>*:not(summary){margin-bottom:6px}
     <div id="tab-content"></div>
   </div>
 
+  <div id="vList" class="vlist"></div>
+  <button class="fab" id="fab" data-act="l-new">&#xFF0B; Nueva finca</button>
+  <div id="nsheet" class="sheet nsheet hidden">
+    <div class="sh"><b>Nueva finca</b><button id="n-x" aria-label="Cerrar">&#x2715;</button></div>
+    <div class="nbody">
+      <div><label>Nombre</label><input id="n-name" placeholder="p. ej. A Veiga Pol. 508 Parc. 1581"></div>
+      <div><label>Concello</label><select id="n-conc"></select></div>
+      <button class="btn" data-act="n-draw">&#x270F;&#xFE0F; Dibujarla en el mapa</button>
+      <button class="btn" data-act="n-pick">&#x1F4CD; Tocar la parcela SIGPAC en el mapa</button>
+      <button class="btn sec" data-act="n-gps">&#x1F4CC; Parcela SIGPAC en mi posición</button>
+      <div class="g2e"><input id="n-q" placeholder="SIGPAC 15-5-0-0-12-345 ó ref. catastral"><button class="btn" data-act="n-search" style="width:auto">Buscar</button></div>
+      <button class="btn sec" data-act="n-import">&#x1F4E5; Importar GeoJSON (p. ej. de LIMPFINC)</button>
+    </div>
+  </div>
   <nav class="tb" id="tabs">
     <button data-tab="finca"><b>&#x1F5FA;</b>Finca</button>
     <button data-tab="linderos"><b>&#x1F4D0;</b>Linderos</button>
@@ -166,17 +211,18 @@ details>*:not(summary){margin-bottom:6px}
     if (f.ring) PF.ensureEdges(f);
     return f;
   }
-  let finca = null;
+  let finca = null, onList = true;
   let saveT = null;
-  function persist() {
+  function flush() {
     clearTimeout(saveT);
-    saveT = setTimeout(() => {
-      try {
-        store.fincas[finca.id] = finca; store.last = finca.id; store.norm = norm;
-        localStorage.setItem(LS, JSON.stringify(store));
-      } catch (e) { toast('No se pudo guardar en el dispositivo'); }
-    }, 300);
+    if (!finca || (!finca.ring && !finca._keep)) return;
+    try {
+      finca.mod = Date.now();
+      store.fincas[finca.id] = finca; store.last = finca.id; store.norm = norm;
+      localStorage.setItem(LS, JSON.stringify(store));
+    } catch (e) { toast('No se pudo guardar en el dispositivo'); }
   }
+  function persist() { clearTimeout(saveT); saveT = setTimeout(flush, 300); }
 
   let toastT = null;
   function toast(msg, ms) {
@@ -200,7 +246,7 @@ details>*:not(summary){margin-bottom:6px}
       prep = PF.prepare(finca, norm);
       res = PF.generate(prep, finca);
     } else { prep = null; res = { trees: [], counts: {}, total: 0 }; }
-    refreshMap(); refreshDynamic(); persist();
+    finca.total = res.total; refreshMap(); refreshDynamic(); persist();
   }
 
   /* ---------- helpers geométricos de dibujo ---------- */
@@ -260,12 +306,12 @@ details>*:not(summary){margin-bottom:6px}
       map.addLayer({ id: 'gps-pt', type: 'circle', source: 'gps', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 7, 'circle-color': '#1976d2', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
       map.addLayer({ id: 'draw-line', type: 'line', source: 'draw', filter: ['==', ['get', 't'], 'line'], paint: { 'line-color': '#ff6f00', 'line-width': 3 } });
       map.addLayer({ id: 'draw-pts', type: 'circle', source: 'draw', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#ff6f00', 'circle-stroke-width': 2 } });
-      mapReady = true; applyBase();
-      const lastId = store.last && store.fincas[store.last];
-      if (lastId) openFinca(store.fincas[store.last], true); else { finca = newFinca(); recalc(); renderTab(); }
+      mapReady = true; applyBase(); refreshMap();
+      if (!onList && finca.ring) fitFinca();
       startGPS();
     });
     map.on('click', onMapClick);
+    map.on('error', (e) => { if (!window.__merr) { window.__merr = 1; toast('Error del mapa/teselas: ' + ((e.error && e.error.message) || ''), 6000); } });
   }
   function setSrc(id, data) { if (mapReady) map.getSource(id).setData(data); }
 
@@ -371,10 +417,47 @@ details>*:not(summary){margin-bottom:6px}
   $('#d-ok').onclick = finishDraw;
 
   /* ---------- gestión de fincas ---------- */
-  function openFinca(f, silent) {
+  function openFinca(f) {
+    flush();
     finca = migrate(JSON.parse(JSON.stringify(f)));
-    recalc(); renderTab();
-    if (finca.ring) fitFinca(); else if (!silent) toast('Finca sin geometría');
+    enterMap(); recalc(); renderTab();
+    if (finca.ring) fitFinca();
+  }
+  function setHeader() {
+    $('#h-back').classList.toggle('hidden', onList); $('#h-more').classList.toggle('hidden', onList);
+    $('#finca-title').textContent = onList ? 'PLANTFINC' : (finca.name || 'Finca');
+  }
+  function enterMap() {
+    onList = false; $('#vList').classList.add('hidden'); $('#fab').classList.add('hidden'); $('#nsheet').classList.add('hidden');
+    setHeader(); if (mapReady) map.resize();
+  }
+  function showList() {
+    flush(); if (draw) endDraw(); closeSheet();
+    ['#hmenu', '#menu'].forEach((x) => $(x).classList.add('hidden'));
+    onList = true; $('#vList').classList.remove('hidden'); $('#fab').classList.remove('hidden');
+    renderList(); setHeader();
+  }
+  function fer2(f) { return f.ferrado || (C[f.concello] && C[f.concello].ferrado) || null; }
+  function renderList() {
+    const fs = Object.keys(store.fincas).map((id) => store.fincas[id]).sort((a, b) => (b.mod || 0) - (a.mod || 0));
+    const info = (f) => {
+      const st = f.ring ? PF.stats(f.ring) : null, fm = fer2(f);
+      return esc((C[f.concello] || {}).name || '') + ' · ' + (st ? (st.area / 10000).toFixed(2) + ' ha' + (fm ? ' · ' + (st.area / fm).toFixed(1) + ' ferr.' : '') + (f.total ? ' · ' + f.total + ' árb.' : '') : 'sin geometría');
+    };
+    const last = store.last && store.fincas[store.last];
+    $('#vList').innerHTML =
+      (last ? '<button class="last" data-act="l-open" data-id="' + last.id + '">&#x25B6; Continuar con ' + esc(last.name) + '<small>' + info(last) + '</small></button>' : '') +
+      '<div class="g2" style="margin-bottom:10px"><button class="btn sec" data-act="l-import">&#x1F4E5; Importar GeoJSON</button><button class="btn sec" data-act="l-new">&#xFF0B; Nueva finca</button></div>' +
+      (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
+        '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
+        : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.3 · &#x1F4F1; solo este dispositivo</div>';
+  }
+  function createFromSheet() {
+    const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
+    finca = newFinca(); finca.name = name; finca.concello = conc; finca._keep = true;
+    enterMap(); recalc(); renderTab();
+    return q;
   }
   function setRing(ring, name) {
     finca.ring = ring; finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null;
@@ -451,7 +534,7 @@ details>*:not(summary){margin-bottom:6px}
   function onFix(pos) {
     const c = pos.coords; lastFix = [c.longitude, c.latitude, c.accuracy];
     const b = $('#gps-status'); b.textContent = 'GPS: ±' + Math.round(c.accuracy) + ' m';
-    b.style.background = c.accuracy < 10 ? 'rgba(76,175,80,.6)' : 'rgba(255,152,0,.6)';
+    b.style.background = c.accuracy < 10 ? '#c8e6c9' : '#ffe0b2';
     const pj = PF.makeProj(c.longitude, c.latitude), ring = [];
     for (let k = 0; k < 48; k++) ring.push(pj.toLL(c.accuracy * Math.cos(k * Math.PI / 24), c.accuracy * Math.sin(k * Math.PI / 24)));
     setSrc('gps', { type: 'FeatureCollection', features: [
@@ -545,7 +628,7 @@ details>*:not(summary){margin-bottom:6px}
       '<tr><td><b>Total</b></td><td>' + res.total + '</td><td><b>' + eur(e.cost) + '</b></td><td><b>' + eur(e.inc) + '</b></td></tr></table>';
   }
   function refreshDynamic() {
-    $('#finca-title').textContent = 'PLANTFINC · ' + (finca.name || 'Finca');
+    if (!onList) $('#finca-title').textContent = finca.name || 'Finca';
     const st = finca.ring ? PF.stats(finca.ring) : { area: 0, perimeter: 0 };
     $('#m-area').textContent = (st.area / 10000).toFixed(2) + ' ha';
     const fm = ferradoM2();
@@ -574,10 +657,7 @@ details>*:not(summary){margin-bottom:6px}
       '<div class="g2"><div><label>Uso anterior</label><select data-bind="uso">' + optsObj(USOS, finca.uso, (v) => v) + '</select></div>' +
       '<div><label>Suelo</label><select data-bind="suelo">' + optsObj(SUELOS, finca.suelo, (v) => v) + '</select></div></div>' +
       '<label class="chk"><input type="checkbox" data-bind="natura"' + (finca.natura ? ' checked' : '') + '> Red Natura / espacio protegido</label></details>' +
-      '<details><summary>Fincas guardadas (' + saved.length + ')</summary><div class="g3e"><select id="sel-finca">' + saved.map((f) => '<option value="' + f.id + '"' + (f.id === finca.id ? ' selected' : '') + '>' + esc(f.name) + '</option>').join('') + '</select>' +
-      '<button class="btn sec" style="width:auto" data-act="open">Abrir</button><button class="btn sec" style="width:auto" data-act="new">Nueva</button><button class="btn danger" style="width:auto" data-act="del">Borrar</button></div></details>' +
-      '<div class="g2"><button class="btn sec" data-act="fit">Ver finca</button><button class="btn sec" data-act="save-center">Fijar centro de inicio</button></div>' +
-      '<input type="file" id="file" accept=".json,.geojson,application/geo+json,application/json" class="hidden">';
+      '<div class="g2"><button class="btn sec" data-act="fit">Ver finca</button><button class="btn sec" data-act="save-center">Fijar centro de inicio</button></div>';
   }
 
   function tabLinderos() {
@@ -650,8 +730,12 @@ details>*:not(summary){margin-bottom:6px}
     if (sheetOpen && tab === b.dataset.tab) closeSheet(); else openSheet(b.dataset.tab);
   });
   $('#sheet-x').onclick = closeSheet;
+  $('#n-x').onclick = () => $('#nsheet').classList.add('hidden');
+  $('#h-back').onclick = showList;
+  $('#h-more').onclick = () => { $('#hmenu').classList.toggle('hidden'); $('#menu').classList.add('hidden'); };
+  $('#gps-status').onclick = () => { if (gpsWatch === null) startGPS(); else stopGPS(); };
   $('#strip').onclick = () => openSheet('informe');
-  $('#finca-title').onclick = () => openSheet('finca');
+  $('#finca-title').onclick = () => { if (!onList) openSheet('finca'); };
   $('#btn-lay').onclick = () => { $('#menu').classList.toggle('hidden'); };
   $('#btn-loc').onclick = () => { if (lastFix && mapReady) map.flyTo({ center: [lastFix[0], lastFix[1]], zoom: Math.max(map.getZoom(), 17) }); else toast(gpsWatch === null ? 'GPS apagado: actívalo en Capas' : 'Sin posición GPS todavía'); };
 
@@ -697,9 +781,26 @@ details>*:not(summary){margin-bottom:6px}
   }
   const slug = (s) => String(s || 'finca').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'finca';
 
-  $('#tab-content').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-act]'); if (!b) return;
-    const a = b.dataset.act, i = +b.dataset.i;
+  function exportGeo() {
+    if (!prep) { toast('No hay datos'); return; }
+    const fc = { type: 'FeatureCollection', features: [polyFeature(finca.ring, { name: finca.name, tipo: 'finca' })].concat(
+      res.trees.map((t) => ({ type: 'Feature', properties: { especie: S[t.sp].name, color: S[t.sp].color }, geometry: { type: 'Point', coordinates: prep.pj.toLL(t.x, t.y) } }))) };
+    download('plantfinc-' + slug(finca.name) + '.geojson', JSON.stringify(fc), 'application/geo+json');
+  }
+  function fileImport(e) {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try { setRing(PF.ringFromGeoJSON(JSON.parse(rd.result)), f.name.replace(/\.[^.]+$/, '')); toast('Finca importada'); }
+      catch (err) { toast('Importación fallida: ' + err.message, 6000); }
+    };
+    rd.readAsText(f); e.target.value = '';
+  }
+  $('#file').addEventListener('change', fileImport);
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]'); if (!b || !b.closest('#tab-content,#hmenu,#vList,#nsheet,#fab')) return;
+    const a = b.dataset.act, i = +b.dataset.i, id = b.dataset.id;
+    $('#hmenu').classList.add('hidden');
     switch (a) {
       case 'draw-finca': startDraw('finca'); break;
       case 'import': $('#file').click(); break;
@@ -708,14 +809,23 @@ details>*:not(summary){margin-bottom:6px}
       case 'search': searchParcel($('#q').value); break;
       case 'fit': closeSheet(); fitFinca(); break;
       case 'center-me': closeSheet(); if (lastFix && mapReady) map.flyTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else toast('Sin posición GPS todavía'); break;
-      case 'open': { const id = $('#sel-finca').value; if (store.fincas[id]) { persist(); openFinca(store.fincas[id]); } break; }
-      case 'new': persist(); finca = newFinca(); recalc(); renderTab(); toast('Finca nueva: dibuja o importa la geometría'); break;
+      case 'l-open': if (store.fincas[id]) openFinca(store.fincas[id]); break;
+      case 'l-edit': if (store.fincas[id]) { openFinca(store.fincas[id]); openSheet('finca'); } break;
+      case 'l-exp': if (store.fincas[id]) { openFinca(store.fincas[id]); exportGeo(); } break;
+      case 'l-copy': if (store.fincas[id]) { const c = JSON.parse(JSON.stringify(store.fincas[id])); c.id = 'f' + Date.now(); c.name += ' (copia)'; c.mod = Date.now(); store.fincas[c.id] = c; try { localStorage.setItem(LS, JSON.stringify(store)); } catch (er) { /* */ } renderList(); toast('Finca copiada'); } break;
+      case 'l-del': if (store.fincas[id] && confirm('¿Eliminar «' + store.fincas[id].name + '» de este dispositivo?')) { delete store.fincas[id]; if (store.last === id) store.last = null; try { localStorage.setItem(LS, JSON.stringify(store)); } catch (er) { /* */ } renderList(); } break;
+      case 'l-new': $('#n-conc').innerHTML = optsObj(C, 'abegondo', (v) => v.name); $('#n-name').value = ''; $('#n-q').value = ''; $('#nsheet').classList.remove('hidden'); break;
+      case 'l-import': flush(); finca = newFinca(); enterMap(); recalc(); renderTab(); $('#file').click(); break;
+      case 'n-draw': createFromSheet(); startDraw('finca'); break;
+      case 'n-pick': createFromSheet(); startDraw('pick'); break;
+      case 'n-gps': if (lastFix) { createFromSheet(); parcelAtPoint(lastFix[0], lastFix[1]); } else toast('Sin posición GPS todavía'); break;
+      case 'n-search': { const q = $('#n-q').value; if (!q.trim()) { toast('Escribe un código SIGPAC o referencia catastral'); break; } createFromSheet(); searchParcel(q); break; }
+      case 'n-import': createFromSheet(); $('#file').click(); break;
       case 'del': {
-        if (!confirm('¿Borrar la finca «' + finca.name + '» de este dispositivo?')) break;
+        if (!confirm('¿Eliminar la finca «' + finca.name + '» de este dispositivo?')) break;
         delete store.fincas[finca.id]; store.last = null;
         try { localStorage.setItem(LS, JSON.stringify(store)); } catch (er) { /* sin espacio */ }
-        const ids = Object.keys(store.fincas);
-        if (ids.length) openFinca(store.fincas[ids[0]]); else { finca = newFinca(); recalc(); renderTab(); }
+        finca = newFinca(); showList();
         break;
       }
       case 'save-center': if (mapReady) { const c = map.getCenter(); store.center = [c.lng, c.lat]; try { localStorage.setItem(LS, JSON.stringify(store)); } catch (er) { /* */ } toast('Centro de inicio guardado'); } break;
@@ -744,13 +854,7 @@ details>*:not(summary){margin-bottom:6px}
       case 'del-zona': finca.subzonas.splice(i, 1); recalc(); renderTab(); break;
       case 'norm-reset': { const d = PF.defaultNorm(); Object.keys(d).forEach((k) => { norm[k] = d[k]; }); recalc(); renderTab(); break; }
       case 'report': openReport(); break;
-      case 'export': {
-        if (!prep) { toast('No hay datos'); break; }
-        const fc = { type: 'FeatureCollection', features: [polyFeature(finca.ring, { name: finca.name, tipo: 'finca' })].concat(
-          res.trees.map((t) => ({ type: 'Feature', properties: { especie: S[t.sp].name, color: S[t.sp].color }, geometry: { type: 'Point', coordinates: prep.pj.toLL(t.x, t.y) } }))) };
-        download('plantfinc-' + slug(finca.name) + '.geojson', JSON.stringify(fc), 'application/geo+json');
-        break;
-      }
+      case 'export': exportGeo(); break;
     }
   });
 
@@ -816,6 +920,7 @@ details>*:not(summary){margin-bottom:6px}
   finca = newFinca();
   renderTab();
   initMap();
+  showList();
   if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
