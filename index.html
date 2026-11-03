@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v1.2</title>
+<title>PLANTFINC v1.3</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -675,6 +675,7 @@ details>*:not(summary){margin-bottom:6px}
   function setCollapsed(v) { if (v) { reopen = sheetOpen; closeSheet(); } else if (reopen) { reopen = false; openSheet(); } }
   function startDraw(mode) {
     if (!mapReady) { toast('El mapa no está disponible'); return; }
+    endSigpac(); if (ms) endMeasure(); if (tr) endTramo(); if (tt) endTrees();
     draw = { mode: mode, pts: [] };
     $('#drawmsg').textContent = DRAW_MSG[mode];
     $('#drawbar').classList.remove('hidden');
@@ -693,10 +694,10 @@ details>*:not(summary){margin-bottom:6px}
   }
   function endDraw() { draw = null; $('#drawbar').classList.add('hidden'); setSrc('draw', EMPTY); setCollapsed(false); }
   function onMapClick(e) {
+    if (sg) { sgTap(e); return; }
     if (tt) { ttTap(e); return; }
     if (tr) { trTap(e); return; }
     if (ms) { msTap(e); return; }
-    if (sg) { sgTap(e); return; }
     if (!draw) {
       $('#menu').classList.add('hidden');
       if (!onList && finca.ring) {
@@ -770,7 +771,7 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v1.2 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v1.3 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -793,11 +794,14 @@ details>*:not(summary){margin-bottom:6px}
     }
     return pts.map((o) => o.p);
   }
+  let pendHuecos = null;
   function setRing(ring, name) {
     finca.ringOrig = ring.slice();
     finca.ring = simplifyRing(ring, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1;
     if (name) finca.name = name;
-    recalc(); renderTab(); fitFinca();
+    if (pendHuecos) { pendHuecos.forEach((h) => finca.exclusions.push(h)); pendHuecos = null; }
+    fitFinca(); toast('Calculando la disposición óptima…', 4000);
+    setTimeout(() => { recalc(); renderTab(); }, 40);
   }
 
   const SIGPAC_API = 'https://sigpac-hubcloud.es/ogcapi/collections/recintos/items';
@@ -848,9 +852,8 @@ details>*:not(summary){margin-bottom:6px}
   function applyRecintos(sel, name) {
     const u = unirRecintos(sel.map((r) => r.ring));
     if (!u) { toast('No se pudo formar el contorno', 5000); return; }
+    pendHuecos = (u.huecos || []).map((h) => ({ kind: 'poly', coords: simplifyRing(h, 12) }));
     setRing(u.coords, name);
-    (u.huecos || []).forEach((h) => finca.exclusions.push({ kind: 'poly', coords: simplifyRing(h, 12) }));
-    if (u.huecos && u.huecos.length) recalc();
     renderTab();
     toast(u.partes > 1 ? 'Los recintos no son contiguos: se usa la parte mayor (' + u.partes + ' partes)' : 'Finca cargada desde SIGPAC · ' + (PF.stats(u.coords).area / 10000).toFixed(3) + ' ha', 5000);
   }
@@ -933,6 +936,7 @@ details>*:not(summary){margin-bottom:6px}
   function startSigpac() {
     if (!mapReady) { toast('El mapa no está disponible'); return; }
     closeSheet(); $('#nsheet').classList.add('hidden');
+    if (ms) endMeasure(); if (tr) endTramo(); if (tt) endTrees(); if (draw) endDraw(); if (sg) endSigpac();
     sg = { feats: new Map(), props: new Map(), sel: new Map(), box: '' };
     $('#sgbar').classList.remove('hidden');
     if (finca && finca.ring) { fitFinca(); } else if (lastFix) map.jumpTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else map.jumpTo({ center: store.center || CENTER_DEFAULT, zoom: 17 });
