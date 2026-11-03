@@ -159,6 +159,7 @@
     var d = new Array(n);
     return function (x, y) {
       if (!inPoly(x, y, ring)) return null;
+      if (prep.slopeFn && prep.slopeMax > 0 && prep.slopeFn(x, y) > prep.slopeMax) return null;
       var q;
       for (q = 0; q < prep.excl.length; q++) {
         var ex = prep.excl[q];
@@ -230,7 +231,7 @@
     var ring = prep.ring, n = ring.length, i;
     var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
     for (i = 0; i < n; i++) { minx = Math.min(minx, ring[i][0]); maxx = Math.max(maxx, ring[i][0]); miny = Math.min(miny, ring[i][1]); maxy = Math.max(maxy, ring[i][1]); }
-    var area = Math.abs(areaXY(ring)), res = Math.max(0.25, Math.sqrt(area) / 180);
+    var area = Math.abs(areaXY(ring)), res = Math.max(0.2, Math.sqrt(area) / 250);
     var nx = Math.ceil((maxx - minx) / res) + 1, ny = Math.ceil((maxy - miny) / res) + 1;
     var data = new Uint8Array(nx * ny), ev = makeEval(prep, finca, over), ix, iy;
     for (iy = 0; iy < ny; iy++) for (ix = 0; ix < nx; ix++) data[iy * nx + ix] = ev(minx + ix * res, miny + iy * res) ? 1 : 0;
@@ -259,11 +260,13 @@
       }
       return tot;
     }
-    var best = { total: -1, angle: 0, shU: 0, shV: 0 }, deadline = Date.now() + (opts.budget || 1500);
+    var best = { total: -1, angle: 0, shU: 0, shV: 0 }, deadline = Date.now() + (opts.budget || 1500), cands = [];
     function tryAll(angles, nu, nv, u0, v0, su, sv) {
       for (var ai = 0; ai < angles.length; ai++) for (var p = 0; p < nu; p++) for (var q = 0; q < nv; q++) {
         if (best.total >= 0 && Date.now() > deadline) return;
         var a = angles[ai], u = ((u0 + p * su) % sx + sx) % sx, v = ((v0 + q * sv) % sy + sy) % sy, t = score(a, u, v);
+        cands.push({ total: t, angle: a, shU: u, shV: v });
+        if (cands.length > 4000) { cands.sort(function (x, y) { return y.total - x.total; }); cands.length = 300; }
         if (t > best.total) best = { total: t, angle: a, shU: u, shV: v };
       }
     }
@@ -278,7 +281,39 @@
     }
     var b0 = best, steps = 8, ang = [best.angle];
     tryAll(ang, steps * 2 + 1, steps * 2 + 1, b0.shU - steps * 0.05, b0.shV - steps * 0.05, 0.05, 0.05);
-    best.angle = +best.angle.toFixed(2); best.shU = +best.shU.toFixed(3); best.shV = +best.shV.toFixed(3);
+    // refinamiento EXACTO con el generador real (cuenta idéntica a la final)
+    var fixedA = fixed ? +opts.fixedAngle : null, dl2 = Date.now() + (opts.budget2 || 2500);
+    function exact(a, u, v) { return generate(prep, finca, { angle: a, shU: ((u % sx) + sx) % sx, shV: ((v % sy) + sy) % sy }, true).total; }
+    cands.sort(function (x, y) { return y.total - x.total; });
+    var starts = [], ci;
+    for (ci = 0; ci < cands.length && starts.length < 6; ci++) {
+      var c0 = cands[ci], dup = false;
+      for (var si = 0; si < starts.length; si++) if (Math.abs(starts[si].angle - c0.angle) < 3 && Math.abs(starts[si].shU - c0.shU) < sx * 0.3) dup = true;
+      if (!dup) starts.push(c0);
+    }
+    if (!starts.length) starts.push(best);
+    var eb = { total: -1 };
+    for (var st = 0; st < starts.length && (eb.total < 0 || Date.now() < dl2); st++) {
+      var cur = { angle: fixed ? fixedA : starts[st].angle, shU: starts[st].shU, shV: starts[st].shV };
+      cur.total = exact(cur.angle, cur.shU, cur.shV);
+      var sa = [1, 0.5, 0.25, 0.1], ss = [0.25, 0.1, 0.05, 0.02];
+      for (var lv = 0; lv < sa.length; lv++) {
+        var imp = true, guard = 0;
+        while (imp && guard++ < 40 && Date.now() < dl2) {
+          imp = false;
+          var moves = [];
+          if (!fixed) moves.push([sa[lv], 0, 0], [-sa[lv], 0, 0]);
+          moves.push([0, ss[lv], 0], [0, -ss[lv], 0], [0, 0, ss[lv]], [0, 0, -ss[lv]], [0, ss[lv], ss[lv]], [0, -ss[lv], -ss[lv]], [0, ss[lv], -ss[lv]], [0, -ss[lv], ss[lv]]);
+          for (var mi = 0; mi < moves.length; mi++) {
+            var m = moves[mi], na = cur.angle + m[0], nu = cur.shU + m[1], nv = cur.shV + m[2], tt = exact(na, nu, nv);
+            if (tt > cur.total) { cur = { angle: na, shU: ((nu % sx) + sx) % sx, shV: ((nv % sy) + sy) % sy, total: tt }; imp = true; }
+          }
+        }
+      }
+      if (cur.total > eb.total) eb = cur;
+    }
+    if (eb.total >= 0) best = eb;
+    best.angle = +best.angle.toFixed(3); best.shU = +best.shU.toFixed(3); best.shV = +best.shV.toFixed(3);
     return best;
   }
 
