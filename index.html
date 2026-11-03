@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v1.3</title>
+<title>PLANTFINC v1.4</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -310,6 +310,7 @@ details>*:not(summary){margin-bottom:6px}
   const optCache = {};
   function autoOpt() {
     const p = finca.params; if (p.opt === 'manual') return;
+    if (typeof PF.optimizeAuto !== 'function') { if (!window.__oldcore) { window.__oldcore = 1; toast('core.js desactualizado: sube también core.js (v1.4) al repositorio', 9000); } return; }
     const fijo = p.opt === 'fijo';
     const key = JSON.stringify([finca.ring, finca.edges, finca.exclusions, finca.subzonas, p.sx, p.sy, p.core, p.rows, p.opt, fijo ? p.angle : null, norm]);
     if (optCache[finca.id] === key) return;
@@ -324,16 +325,24 @@ details>*:not(summary){margin-bottom:6px}
     (finca.manual || []).forEach((m) => { const q = pj.toXY(m.ll[0], m.ll[1]); res.trees.push({ x: q[0], y: q[1], sp: m.sp || finca.params.core, man: 1 }); });
     res.counts = {}; res.trees.forEach((t) => { res.counts[t.sp] = (res.counts[t.sp] || 0) + 1; }); res.total = res.trees.length;
   }
+  window.addEventListener('error', (ev) => { try { toast('Error: ' + ev.message, 9000); } catch (x) { /* */ } });
+  window.addEventListener('unhandledrejection', (ev) => { try { toast('Error: ' + ((ev.reason && ev.reason.message) || ev.reason), 9000); } catch (x) { /* */ } });
+  const fail = (stage, e) => { try { console.error(stage, e); toast('Error (' + stage + '): ' + (e && e.message), 9000); } catch (x) { /* */ } };
   function recalc() {
     clampParams();
     if (finca.ring && finca.ring.length >= 3) {
-      PF.ensureEdges(finca);
-      prep = PF.prepare(finca, norm);
-      autoOpt();
-      res = PF.generate(prep, finca);
-      applyManual();
+      let okp = true;
+      try { PF.ensureEdges(finca); prep = PF.prepare(finca, norm); } catch (e) { okp = false; prep = null; fail('preparar', e); }
+      res = { trees: [], counts: {}, total: 0 };
+      if (okp) {
+        try { autoOpt(); } catch (e) { fail('optimizar', e); }
+        try { res = PF.generate(prep, finca); applyManual(); } catch (e) { res = { trees: [], counts: {}, total: 0 }; fail('generar', e); }
+      }
     } else { prep = null; res = { trees: [], counts: {}, total: 0 }; }
-    finca.total = res.total; refreshMap(); refreshDynamic(); persist();
+    finca.total = res.total;
+    try { refreshMap(); } catch (e) { fail('mapa', e); }
+    try { refreshDynamic(); } catch (e) { fail('panel', e); }
+    persist();
   }
 
   /* ---------- helpers geométricos de dibujo ---------- */
@@ -771,7 +780,7 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v1.3 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v1.4 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -800,8 +809,10 @@ details>*:not(summary){margin-bottom:6px}
     finca.ring = simplifyRing(ring, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1;
     if (name) finca.name = name;
     if (pendHuecos) { pendHuecos.forEach((h) => finca.exclusions.push(h)); pendHuecos = null; }
+    res = { trees: [], counts: {}, total: 0 };
+    try { refreshMap(); } catch (e) { fail('mapa', e); }
     fitFinca(); toast('Calculando la disposición óptima…', 4000);
-    setTimeout(() => { recalc(); renderTab(); }, 40);
+    setTimeout(() => { recalc(); try { renderTab(); } catch (e) { fail('pestaña', e); } }, 40);
   }
 
   const SIGPAC_API = 'https://sigpac-hubcloud.es/ogcapi/collections/recintos/items';

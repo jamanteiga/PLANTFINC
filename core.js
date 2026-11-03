@@ -141,18 +141,65 @@
     return prep;
   }
 
+  // Devuelve una función ev(x,y) → especie plantable en ese punto, o null (fuera, excluido o dentro de la distancia legal).
+  function makeEval(prep, finca, over) {
+    var P = {}, k;
+    for (k in finca.params) P[k] = finca.params[k];
+    if (over) for (k in over) P[k] = over[k];
+    var sx = +P.sx, sy = +P.sy;
+    var ring = prep.ring, n = ring.length, edges = prep.edges;
+    var core = P.core, nRows = Math.max(0, +P.rows || 0), rowsDepth = nRows * Math.min(sx, sy);
+    var depth = [], i;
+    for (i = 0; i < n; i++) {
+      var e = edges[i];
+      depth.push(e.franja && nRows > 0 ? prep.sb(i, e.especie) + rowsDepth : -1);
+    }
+    var sbCore = [], sbEsp = {};
+    for (i = 0; i < n; i++) sbCore.push(prep.sb(i, core));
+    var d = new Array(n);
+    return function (x, y) {
+      if (!inPoly(x, y, ring)) return null;
+      var q;
+      for (q = 0; q < prep.excl.length; q++) {
+        var ex = prep.excl[q];
+        if (ex.kind === 'line') {
+          for (var m = 0; m + 1 < ex.pts.length; m++) {
+            if (distSeg(x, y, ex.pts[m][0], ex.pts[m][1], ex.pts[m + 1][0], ex.pts[m + 1][1]) < ex.buf) return null;
+          }
+        } else if (inPoly(x, y, ex.pts)) return null;
+      }
+      for (q = 0; q < n; q++) {
+        var b = ring[(q + 1) % n];
+        d[q] = distSeg(x, y, ring[q][0], ring[q][1], b[0], b[1]);
+      }
+      var sp = null;
+      for (q = 0; q < prep.zones.length; q++) {
+        if (inPoly(x, y, prep.zones[q].pts)) { sp = prep.zones[q].sp; break; }
+      }
+      if (!sp) {
+        var best = -1, bd = Infinity;
+        for (q = 0; q < n; q++) {
+          if (depth[q] >= 0 && d[q] < depth[q] && d[q] < bd) { bd = d[q]; best = q; }
+        }
+        sp = best >= 0 ? edges[best].especie : core;
+      }
+      for (q = 0; q < n; q++) {
+        var need = sp === core ? sbCore[q] : prep.sb(q, sp);
+        if (d[q] < need) return null;
+      }
+      return sp;
+    };
+  }
+
   function generate(prep, finca, over, countOnly) {
-    var P = {};
-    var k;
+    var P = {}, k;
     for (k in finca.params) P[k] = finca.params[k];
     if (over) for (k in over) P[k] = over[k];
     var sx = +P.sx, sy = +P.sy;
     var th = (+P.angle || 0) * RAD, c = Math.cos(th), s = Math.sin(th);
     var shU = +P.shU || 0, shV = +P.shV || 0;
     var ox = prep.anchor[0], oy = prep.anchor[1];
-    var ring = prep.ring, n = ring.length, edges = prep.edges;
-    var core = P.core, nRows = Math.max(0, +P.rows || 0), rowsDepth = nRows * Math.min(sx, sy);  // filas de frondosas: la 1.ª a la distancia legal, las siguientes cada marco
-
+    var ring = prep.ring, n = ring.length;
     var umin = Infinity, umax = -Infinity, vmin = Infinity, vmax = -Infinity, i, j;
     for (i = 0; i < n; i++) {
       var dx = ring[i][0] - ox, dy = ring[i][1] - oy;
@@ -162,61 +209,77 @@
     }
     var i0 = Math.ceil((umin - shU) / sx), i1 = Math.floor((umax - shU) / sx);
     var j0 = Math.ceil((vmin - shV) / sy), j1 = Math.floor((vmax - shV) / sy);
-
-    // profundidad de la franja de frondosas por lindero
-    var depth = [];
-    for (i = 0; i < n; i++) {
-      var e = edges[i];
-      depth.push(e.franja && nRows > 0 ? prep.sb(i, e.especie) + rowsDepth : -1);
-    }
-
-    var trees = [], counts = {}, total = 0, d = new Array(n);
+    var ev = makeEval(prep, finca, over);
+    var trees = [], counts = {}, total = 0;
     for (i = i0; i <= i1; i++) {
       for (j = j0; j <= j1; j++) {
         var uu = i * sx + shU, vv = j * sy + shV;
         var x = ox + uu * c - vv * s, y = oy + uu * s + vv * c;
-        if (!inPoly(x, y, ring)) continue;
-
-        var skip = false, q;
-        for (q = 0; q < prep.excl.length && !skip; q++) {
-          var ex = prep.excl[q];
-          if (ex.kind === 'line') {
-            for (var m = 0; m + 1 < ex.pts.length; m++) {
-              if (distSeg(x, y, ex.pts[m][0], ex.pts[m][1], ex.pts[m + 1][0], ex.pts[m + 1][1]) < ex.buf) { skip = true; break; }
-            }
-          } else if (inPoly(x, y, ex.pts)) skip = true;
-        }
-        if (skip) continue;
-
-        for (q = 0; q < n; q++) {
-          var b = ring[(q + 1) % n];
-          d[q] = distSeg(x, y, ring[q][0], ring[q][1], b[0], b[1]);
-        }
-
-        var sp = null;
-        for (q = 0; q < prep.zones.length; q++) {
-          if (inPoly(x, y, prep.zones[q].pts)) { sp = prep.zones[q].sp; break; }
-        }
-        if (!sp) {
-          var best = -1, bd = Infinity;
-          for (q = 0; q < n; q++) {
-            if (depth[q] >= 0 && d[q] < depth[q] && d[q] < bd) { bd = d[q]; best = q; }
-          }
-          sp = best >= 0 ? edges[best].especie : core;
-        }
-
-        var ok = true;
-        for (q = 0; q < n; q++) {
-          if (d[q] < prep.sb(q, sp)) { ok = false; break; }
-        }
-        if (!ok) continue;
-
+        var sp = ev(x, y);
+        if (!sp) continue;
         total++;
         counts[sp] = (counts[sp] || 0) + 1;
         if (!countOnly) trees.push({ x: x, y: y, sp: sp });
       }
     }
     return { trees: trees, counts: counts, total: total };
+  }
+
+  // Máscara de puntos plantables (rápida para optimizar): 1 = se puede plantar
+  function buildMask(prep, finca, over) {
+    var ring = prep.ring, n = ring.length, i;
+    var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    for (i = 0; i < n; i++) { minx = Math.min(minx, ring[i][0]); maxx = Math.max(maxx, ring[i][0]); miny = Math.min(miny, ring[i][1]); maxy = Math.max(maxy, ring[i][1]); }
+    var area = Math.abs(areaXY(ring)), res = Math.max(0.25, Math.sqrt(area) / 180);
+    var nx = Math.ceil((maxx - minx) / res) + 1, ny = Math.ceil((maxy - miny) / res) + 1;
+    var data = new Uint8Array(nx * ny), ev = makeEval(prep, finca, over), ix, iy;
+    for (iy = 0; iy < ny; iy++) for (ix = 0; ix < nx; ix++) data[iy * nx + ix] = ev(minx + ix * res, miny + iy * res) ? 1 : 0;
+    return { x0: minx, y0: miny, res: res, nx: nx, ny: ny, data: data };
+  }
+
+  // Busca ángulo (salvo que se fije) y desplazamientos que maximizan el número de árboles.
+  function optimizeAuto(prep, finca, opts) {
+    opts = opts || {};
+    var P = finca.params, sx = +P.sx, sy = +P.sy;
+    var ring = prep.ring, n = ring.length, ox = prep.anchor[0], oy = prep.anchor[1];
+    var mk = buildMask(prep, finca), data = mk.data, nx = mk.nx, ny = mk.ny, inv = 1 / mk.res, x0 = mk.x0, y0 = mk.y0;
+    function score(angDeg, shU, shV) {
+      var th = angDeg * RAD, c = Math.cos(th), s = Math.sin(th), i, j;
+      var umin = Infinity, umax = -Infinity, vmin = Infinity, vmax = -Infinity;
+      for (i = 0; i < n; i++) {
+        var dx = ring[i][0] - ox, dy = ring[i][1] - oy, u = dx * c + dy * s, v = -dx * s + dy * c;
+        if (u < umin) umin = u; if (u > umax) umax = u; if (v < vmin) vmin = v; if (v > vmax) vmax = v;
+      }
+      var i0 = Math.ceil((umin - shU) / sx), i1 = Math.floor((umax - shU) / sx), j0 = Math.ceil((vmin - shV) / sy), j1 = Math.floor((vmax - shV) / sy), tot = 0;
+      for (i = i0; i <= i1; i++) for (j = j0; j <= j1; j++) {
+        var uu = i * sx + shU, vv = j * sy + shV;
+        var x = ox + uu * c - vv * s, y = oy + uu * s + vv * c;
+        var gx = Math.round((x - x0) * inv), gy = Math.round((y - y0) * inv);
+        if (gx >= 0 && gy >= 0 && gx < nx && gy < ny && data[gy * nx + gx]) tot++;
+      }
+      return tot;
+    }
+    var best = { total: -1, angle: 0, shU: 0, shV: 0 }, deadline = Date.now() + (opts.budget || 1500);
+    function tryAll(angles, nu, nv, u0, v0, su, sv) {
+      for (var ai = 0; ai < angles.length; ai++) for (var p = 0; p < nu; p++) for (var q = 0; q < nv; q++) {
+        if (best.total >= 0 && Date.now() > deadline) return;
+        var a = angles[ai], u = ((u0 + p * su) % sx + sx) % sx, v = ((v0 + q * sv) % sy + sy) % sy, t = score(a, u, v);
+        if (t > best.total) best = { total: t, angle: a, shU: u, shV: v };
+      }
+    }
+    var fixed = opts.fixedAngle != null && isFinite(opts.fixedAngle);
+    var maxA = Math.abs(sx - sy) < 1e-9 ? 90 : 180, angles = [], a;
+    if (fixed) angles = [+opts.fixedAngle];
+    else for (a = 0; a < maxA; a += 2) angles.push(a);
+    tryAll(angles, 6, 6, 0, 0, sx / 6, sy / 6);
+    if (!fixed) {
+      angles = []; for (a = best.angle - 2; a <= best.angle + 2.0001; a += 0.25) angles.push(((a % maxA) + maxA) % maxA);
+      tryAll(angles, 8, 8, 0, 0, sx / 8, sy / 8);
+    }
+    var b0 = best, steps = 8, ang = [best.angle];
+    tryAll(ang, steps * 2 + 1, steps * 2 + 1, b0.shU - steps * 0.05, b0.shV - steps * 0.05, 0.05, 0.05);
+    best.angle = +best.angle.toFixed(2); best.shU = +best.shU.toFixed(3); best.shV = +best.shV.toFixed(3);
+    return best;
   }
 
   // Busca ángulo y desplazamiento de la retícula que maximizan el nº de árboles.
@@ -288,7 +351,7 @@
     SPECIES: SPECIES, LINDEROS: LINDEROS, CONCELLOS: CONCELLOS,
     defaultNorm: defaultNorm, defaultEdge: defaultEdge, ensureEdges: ensureEdges, groupKey: groupKey,
     centroidLL: centroidLL, makeProj: makeProj, areaXY: areaXY, inPoly: inPoly, distSeg: distSeg, stats: stats,
-    prepare: prepare, generate: generate, optimize: optimize,
+    prepare: prepare, generate: generate, optimize: optimize, makeEval: makeEval, optimizeAuto: optimizeAuto,
     ringFromGeoJSON: ringFromGeoJSON, ringFromGML: ringFromGML
   };
 });
