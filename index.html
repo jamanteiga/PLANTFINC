@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v0.6</title>
+<title>PLANTFINC v0.7</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -108,10 +108,16 @@ details>*:not(summary){margin-bottom:6px}
 .btn:disabled{opacity:.45}
 .enum{width:20px;height:20px;border-radius:50%;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.6);pointer-events:none}
 .erow{border:1px solid var(--border);border-radius:8px;padding:4px 6px}
-.e1{display:grid;grid-template-columns:28px 46px 1fr;gap:6px;align-items:center}
+.e1{display:grid;grid-template-columns:28px 40px 1fr auto;gap:6px;align-items:center}
 .elen{font-size:.78rem;color:#555}
 .badge{width:26px;height:26px;border-radius:50%;border:2px solid #fff;color:#fff;font-weight:700;font-size:.75rem;box-shadow:0 0 0 1px #888;cursor:pointer}
 .e2{display:grid;gap:5px;margin-top:5px}
+.cota{background:#fff;color:#0d47a1;border:1.5px solid #0d47a1;border-radius:6px;padding:1px 5px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+#msbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
+#msbar .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+#ms-info{font-size:.85rem;color:#0d47a1;font-weight:700}
+.efr{display:flex;align-items:center;gap:3px;font-size:.7rem;white-space:nowrap}
+.efr input{width:auto}
 </style>
 </head>
 <body>
@@ -131,6 +137,7 @@ details>*:not(summary){margin-bottom:6px}
 
   <div class="rbtns">
     <button class="rb" id="btn-loc" aria-label="Centrar en mi posición">&#x25CE;</button>
+    <button class="rb" id="btn-meas" aria-label="Medir distancias">&#x1F4CF;</button>
     <button class="rb" id="btn-lay" aria-label="Capas">&#x1F5C2;</button>
   </div>
   <div class="menu hidden" id="hmenu">
@@ -145,6 +152,14 @@ details>*:not(summary){margin-bottom:6px}
     <button class="hbtn on" id="btn-gps">GPS activo</button>
   </div>
 
+  <div id="msbar" class="hidden">
+    <div id="ms-info" class="muted"></div>
+    <div class="g3">
+      <button class="btn sec" id="ms-undo">Borrar última</button>
+      <button class="btn sec" id="ms-clear">Borrar todas</button>
+      <button class="btn" id="ms-ok">Terminar</button>
+    </div>
+  </div>
   <div id="sgbar" class="hidden">
     <div id="sg-info" class="muted">Acércate hasta ver las parcelas SIGPAC (líneas naranjas).</div>
     <div class="g3">
@@ -232,6 +247,10 @@ details>*:not(summary){margin-bottom:6px}
       if (f.maxEdges === 20) f.maxEdges = 10;
       if (f.ringOrig) { f.ring = simplifyRing(f.ringOrig, f.maxEdges); f.edges = []; f.params.anchor = null; }
     }
+    if (!f.v6) {   // v0.7: por defecto solo eucalipto; las frondosas de lindero las eliges tú
+      f.v6 = 1; (f.edges || []).forEach((e) => { e.franja = false; });
+    }
+    f.cotas = f.cotas || [];
     if (f.ring) PF.ensureEdges(f);
     return f;
   }
@@ -314,7 +333,7 @@ details>*:not(summary){margin-bottom:6px}
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
     map.on('load', () => {
-      ['sig', 'finca', 'edges', 'trees', 'excl', 'zonas', 'draw', 'gps', 'anchor'].forEach((id) => map.addSource(id, { type: 'geojson', data: EMPTY }));
+      ['cotas', 'sig', 'finca', 'edges', 'trees', 'excl', 'zonas', 'draw', 'gps', 'anchor'].forEach((id) => map.addSource(id, { type: 'geojson', data: EMPTY }));
       map.addLayer({ id: 'sig-fill', type: 'fill', source: 'sig', paint: { 'fill-color': ['case', ['==', ['get', 'sel'], 1], '#43a047', '#ffb74d'], 'fill-opacity': ['case', ['==', ['get', 'sel'], 1], 0.45, 0.08] } });
       map.addLayer({ id: 'sig-line', type: 'line', source: 'sig', paint: { 'line-color': ['case', ['==', ['get', 'sel'], 1], '#1b5e20', '#ef6c00'], 'line-width': ['case', ['==', ['get', 'sel'], 1], 3, 1.2] } });
       map.addLayer({ id: 'finca-fill', type: 'fill', source: 'finca', paint: { 'fill-color': '#2e7d32', 'fill-opacity': 0.12 } });
@@ -330,6 +349,8 @@ details>*:not(summary){margin-bottom:6px}
       map.addLayer({ id: 'anchor', type: 'circle', source: 'anchor', paint: { 'circle-radius': 9, 'circle-color': 'rgba(255,255,255,0.4)', 'circle-stroke-color': '#ff6f00', 'circle-stroke-width': 3 } });
       map.addLayer({ id: 'gps-acc', type: 'fill', source: 'gps', filter: ['==', ['get', 't'], 'acc'], paint: { 'fill-color': '#1976d2', 'fill-opacity': 0.12 } });
       map.addLayer({ id: 'gps-pt', type: 'circle', source: 'gps', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 7, 'circle-color': '#1976d2', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
+      map.addLayer({ id: 'cotas-line', type: 'line', source: 'cotas', filter: ['==', ['get', 't'], 'l'], paint: { 'line-color': '#0d47a1', 'line-width': 2.5 } });
+      map.addLayer({ id: 'cotas-pt', type: 'circle', source: 'cotas', filter: ['==', ['get', 't'], 'p'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#0d47a1', 'circle-stroke-width': 2.5 } });
       map.addLayer({ id: 'draw-line', type: 'line', source: 'draw', filter: ['==', ['get', 't'], 'line'], paint: { 'line-color': '#ff6f00', 'line-width': 3 } });
       map.addLayer({ id: 'draw-pts', type: 'circle', source: 'draw', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#ff6f00', 'circle-stroke-width': 2 } });
       mapReady = true; applyBase(); refreshMap();
@@ -368,10 +389,50 @@ details>*:not(summary){margin-bottom:6px}
     });
     setSrc('excl', { type: 'FeatureCollection', features: ex });
     setSrc('zonas', { type: 'FeatureCollection', features: (finca.subzonas || []).map((z) => polyFeature(z.coords, { color: S[z.sp].color })) });
-    refreshEdgeNums();
+    refreshEdgeNums(); refreshCotas();
     setSrc('anchor', finca.params.anchor ? { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: finca.params.anchor } } : EMPTY);
   }
 
+  /* ---------- cotas (medir distancias) ---------- */
+  let ms = null, cMarks = [];
+  const fmtM = (v) => v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m';
+  function distLL(a, b) {
+    const pj = PF.makeProj((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), A = pj.toXY(a[0], a[1]), B = pj.toXY(b[0], b[1]);
+    return Math.hypot(A[0] - B[0], A[1] - B[1]);
+  }
+  function refreshCotas() {
+    cMarks.forEach((m) => m.remove()); cMarks = [];
+    const f = [], cs = (finca && finca.cotas) || [];
+    cs.forEach((c) => {
+      f.push({ type: 'Feature', properties: { t: 'l' }, geometry: { type: 'LineString', coordinates: [c.a, c.b] } });
+      f.push({ type: 'Feature', properties: { t: 'p' }, geometry: { type: 'Point', coordinates: c.a } });
+      f.push({ type: 'Feature', properties: { t: 'p' }, geometry: { type: 'Point', coordinates: c.b } });
+      if (mapReady && typeof maplibregl.Marker === 'function') {
+        const el = document.createElement('div'); el.className = 'cota'; el.textContent = fmtM(distLL(c.a, c.b));
+        cMarks.push(new maplibregl.Marker({ element: el }).setLngLat([(c.a[0] + c.b[0]) / 2, (c.a[1] + c.b[1]) / 2]).addTo(map));
+      }
+    });
+    if (ms && ms.p) f.push({ type: 'Feature', properties: { t: 'p' }, geometry: { type: 'Point', coordinates: ms.p } });
+    setSrc('cotas', { type: 'FeatureCollection', features: f });
+  }
+  function msInfo(t) { $('#ms-info').textContent = t; }
+  function startMeasure() {
+    if (!mapReady || onList) return;
+    closeSheet(); endSigpac(); if (draw) endDraw(); $('#menu').classList.add('hidden');
+    ms = { p: null }; $('#msbar').classList.remove('hidden'); $('#btn-meas').classList.add('on');
+    msInfo('Toca el primer punto (se ajusta a los vértices de la finca).');
+  }
+  function endMeasure() { ms = null; $('#msbar').classList.add('hidden'); $('#btn-meas').classList.remove('on'); refreshCotas(); }
+  function msTap(e) {
+    let pt = [e.lngLat.lng, e.lngLat.lat];
+    if (finca.ring && typeof map.project === 'function') {   // ajuste a vértices (14 px)
+      let bd = 14;
+      finca.ring.forEach((v) => { const q = map.project(v), d = Math.hypot(q.x - e.point.x, q.y - e.point.y); if (d < bd) { bd = d; pt = v.slice(); } });
+    }
+    if (!ms.p) { ms.p = pt; msInfo('Toca el segundo punto.'); refreshCotas(); return; }
+    const d = distLL(ms.p, pt); finca.cotas.push({ a: ms.p, b: pt }); ms.p = null;
+    msInfo('Cota: ' + fmtM(d) + ' — toca otro punto para medir otra.'); recalc();
+  }
   let eMarks = [];
   function refreshEdgeNums() {
     eMarks.forEach((m) => m.remove()); eMarks = [];
@@ -431,6 +492,7 @@ details>*:not(summary){margin-bottom:6px}
   }
   function endDraw() { draw = null; $('#drawbar').classList.add('hidden'); setSrc('draw', EMPTY); setCollapsed(false); }
   function onMapClick(e) {
+    if (ms) { msTap(e); return; }
     if (sg) { sgTap(e); return; }
     if (!draw) {
       $('#menu').classList.add('hidden');
@@ -457,6 +519,10 @@ details>*:not(summary){margin-bottom:6px}
     endDraw(); recalc(); renderTab();
     if (m === 'finca') fitFinca();
   }
+  $('#btn-meas').onclick = () => { if (ms) endMeasure(); else startMeasure(); };
+  $('#ms-ok').onclick = endMeasure;
+  $('#ms-undo').onclick = () => { if (ms && ms.p) { ms.p = null; refreshCotas(); } else if (finca.cotas.length) { finca.cotas.pop(); recalc(); } };
+  $('#ms-clear').onclick = () => { finca.cotas = []; if (ms) ms.p = null; recalc(); };
   $('#sg-x').onclick = endSigpac;
   $('#sg-me').onclick = () => { if (lastFix && mapReady) map.flyTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else toast('Sin posición GPS todavía'); };
   $('#sg-use').onclick = sgUse;
@@ -480,7 +546,7 @@ details>*:not(summary){margin-bottom:6px}
     setHeader(); if (mapReady) map.resize();
   }
   function showList() {
-    flush(); if (draw) endDraw(); endSigpac(); closeSheet();
+    flush(); if (draw) endDraw(); endSigpac(); if (ms) endMeasure(); closeSheet();
     ['#hmenu', '#menu'].forEach((x) => $(x).classList.add('hidden'));
     onList = true; $('#vList').classList.remove('hidden'); $('#fab').classList.remove('hidden');
     renderList(); setHeader();
@@ -499,7 +565,7 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.6 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.7 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -835,13 +901,15 @@ details>*:not(summary){margin-bottom:6px}
   function tabLinderos() {
     if (!finca.ring) return '<div class="muted">Elige primero la parcela en el mapa SIGPAC (pestaña Finca).</div>';
     const st = PF.stats(finca.ring);
-    return '<div class="muted">' + finca.edges.length + ' linderos. Cada número está en el mapa sobre su lado; pulsa el número (o el lado en el mapa) para editar sus detalles. Si indicas la distancia de la fila vecina y es ≥ al mínimo legal, se usa.</div>' +
+    return '<div class="muted">' + finca.edges.length + ' linderos. Por defecto todo es eucalipto. Marca &#x1F333; en los linderos que llevan frondosas (' + (+finca.params.rows || 0) + ' fila/s, ajustable en Matriz). Pulsa el número (o el lado en el mapa) para elegir la especie y la distancia de la fila vecina.</div>' +
+      '<div class="g2"><button class="btn sec" data-act="fr-all">&#x1F333; Frondosas en todos</button><button class="btn sec" data-act="fr-none">Solo eucalipto</button></div>' +
       finca.edges.map((e, i) => {
         const n = norm[e.tipo], col = (L[e.tipo] || L.libre).color;
         return '<div class="erow"><div class="e1"><button class="badge" style="background:' + col + '" data-act="hl" data-i="' + i + '">' + (i + 1) + '</button><span class="elen">' + st.lengths[i].toFixed(0) + ' m</span>' +
-          '<select data-edge="' + i + ':tipo">' + optsObj(L, e.tipo, (v) => v.label) + '</select></div>' +
+          '<select data-edge="' + i + ':tipo">' + optsObj(L, e.tipo, (v) => v.label) + '</select>' +
+          '<label class="efr"><input type="checkbox" data-edge="' + i + ':franja"' + (e.franja ? ' checked' : '') + '>&#x1F333;</label></div>' +
           (i === openEdge ? '<div class="e2"><div class="g2"><div><label>Dist. fila vecina (m)</label><input type="number" step="any" min="0" inputmode="decimal" data-edge="' + i + ':vecino" value="' + val(e.vecino) + '" placeholder="opcional"></div>' +
-            '<div><label>Franja de frondosas</label><div class="g2e"><label class="chk"><input type="checkbox" data-edge="' + i + ':franja"' + (e.franja ? ' checked' : '') + '> Sí</label><select data-edge="' + i + ':especie">' + optsObj(S, e.especie, (v) => v.name) + '</select></div></div></div>' +
+            '<div><label>Árbol de este lindero (si &#x1F333; marcado)</label><select data-edge="' + i + ':especie">' + optsObj(S, e.especie, (v) => v.name) + '</select></div></div>' +
             '<div class="muted">Mínimo legal: frondosa ' + n.fr + ' m · eucalipto/otras ' + n.resto + ' m</div></div>' : '') + '</div>';
       }).join('');
   }
@@ -1006,6 +1074,8 @@ details>*:not(summary){margin-bottom:6px}
         if (mapReady) { const p = finca.ring[i], q = finca.ring[(i + 1) % finca.ring.length]; map.easeTo({ center: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] }); }
         break;
       case 'recalc': recalc(); break;
+      case 'fr-all': finca.edges.forEach((e) => { e.franja = true; }); recalc(); renderTab(); break;
+      case 'fr-none': finca.edges.forEach((e) => { e.franja = false; }); recalc(); renderTab(); break;
       case 'resimp': if (!finca.ringOrig) { toast('Vuelve a elegir la parcela en SIGPAC'); break; } finca.maxEdges = Math.max(3, Math.min(60, Math.round(num(finca.maxEdges, 10)))); finca.ring = simplifyRing(finca.ringOrig, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1; recalc(); renderTab(); toast(finca.ring.length + ' linderos (se han reiniciado sus tipos)'); break;
       case 'optimize': {
         if (!prep) { toast('Dibuja o importa una finca primero'); break; }

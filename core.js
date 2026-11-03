@@ -48,7 +48,7 @@
 
   function groupKey(sp) { return SPECIES[sp].group === 'frond' ? 'fr' : 'resto'; }
 
-  function defaultEdge(tipo) { return { tipo: tipo || 'forestal', vecino: null, franja: true, especie: 'castano' }; }
+  function defaultEdge(tipo) { return { tipo: tipo || 'forestal', vecino: null, franja: false, especie: 'castano' }; }
 
   function ensureEdges(finca) {
     var n = finca.ring.length;
