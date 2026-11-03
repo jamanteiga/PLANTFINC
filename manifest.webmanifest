@@ -1,0 +1,14 @@
+{
+  "name": "PLANTFINC",
+  "short_name": "PLANTFINC",
+  "description": "Planificación de plantación en fincas recién cortadas",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f6f8",
+  "theme_color": "#2e7d32",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

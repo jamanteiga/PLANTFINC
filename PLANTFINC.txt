@@ -1,0 +1,33 @@
+PLANTFINC
+
+Es una app pwa para la plantación automática de fincas recién cortadas.
+
+1. El árbol estrella por defecto es el eucalipto nitens o globulus.
+2. Las frondosas serán castaño, roble, abedul (sobre todo cerca de rios), pino.
+3. Se consideran las plantaciones en los ayuntamientos de Abegondo, Oza dos Rios, Curtis y Aranga.
+4. Las fincas se sacarán del sigpac, bien con el número de referencia catastral, desde la propia app en el mapa indicando la finca, o bien, en base a la posición existente que se sacará a través del GPS que estará funcionando en todo momento mientras nos encontremos dentro de la ap.
+5. Las fincas son colindantes con rios, caminos, fincas colindantes y carreteras.
+6. El estilo de presentación y funcionalidad será el de LIMPFINC.
+7. Se respetarán las distancias minimas de la finca con los elementos indicados en 5 de acuerdo al ayuntamiento.
+8. Por defecto se trabajará en el ayuntamiento de Abegondo.
+9. El centro del mapa cuando se muestre, estará en la iglesia de la parroquia de cabanas, abegondo.
+10. En caso de haber quedado en una finca, cuando se vuelva a arrancar la app, se empezará en esa finca.
+11. Se considerarán el paso de líneas de media o alta tensión, así como servicios especiales a consideración de cada ayuntamiento.
+12. Se podrán plantar dos o más tipos de árboles, pero en el núcleo de la finca, no en los límites se plantarán frondosas.
+13. La matriz arbolada serán de 3,5 x 3,5 metros, pudiendo variarse al gusto del usuario.
+14. En los bordes contra rios y carreteras, conviene usar frondosas, por poder dejarlas más próximas a las carreteras o rios, y asi aprovechas mejor el terreno.
+15. Se considerarán también la superficie de la finca en ferrados, siendo estos de distinta superficie en metros cuadrados para cada ayuntamiento.
+16. Se podrán importar fincas desde LIMPFINC, creo que vienen en formato .json o geoson.
+17. Se podrá ver la orografía de la finca, pudiendo rotarle incluso en 3d. Así se puede uno hacer la idea de la misma, para enseñársela al que vaya a realizar la plantación de la finca.
+18. Se considerarán también zonas de servidumbre de vías de tren y autovías o autopistas.
+19. A cada tipo de árbol se le asigna un circulo de un color, para poder distinguirlo en el mapa.
+20. Generarás un reporte en formato A4, vista en planta, con la mayor parte de la hoja ocupada por el mapa de la finca, así como la disposición matricial de árboles. También indicarás una leyenda indicando el circulo del color correspondiente, el tipo de árbol. También se indicará la cantidad total de árboles a plantar de cada especie.
+21. Normalmente respecto a una finca colindante, suelen tener también eucaliptos, con lo que desde el borde de mi finca se mantendrá la misma distancia existente desde la fila exterior de la finca vecina al borde de la misma, para aprovechar al máximo la superficie.
+22. Para el uso de la orografia, tendrás que usar mapas en 3d, no tengo ni remota idea de donde lo puedes sacar, pero todo ello se ha de sacar de fuentes libre y oficiales como sigpac.
+23. También se podrán considerar exclusiones en las que no se podrá plantar, pero estas serán definidas por el usuario.
+24. Desde el punto de vista económico para la plantación de la finca, se ha de considerar el tipo de eucalipto, porque el nitens y el globulus tienen diferente precio en el mercado, y luego si van para madereras o papeleras como ENCE.
+25. Modelo digital den terreno, usando portales digitales autonómicos, información geográfica de Galicia. Del CNIG se puede descargar un modelo digital del terreno con una malla de 2 a 5 metros. 
+26. Emplazamiento  de varios árboles virtualmente en base a mi posición en la finca, a partir de la cual desplegará la matriz arbolada.
+27. Poder modifica la orientación de la matriz para ver con que ángulos en eje X e Y se planta la mayor cantidad posible de árboles.
+28. Maplibre GL.
+29. Sacar datos 3D del CNIG
