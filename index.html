@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v0.5</title>
+<title>PLANTFINC v0.6</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -221,12 +221,17 @@ details>*:not(summary){margin-bottom:6px}
   function migrate(f) {
     const d = { concello: 'abegondo', uso: 'eucalipto', suelo: 'forestal', natura: false, ferrado: null, edges: [], exclusions: [], subzonas: [] };
     Object.keys(d).forEach((k) => { if (f[k] === undefined) f[k] = d[k]; });
-    if (f.maxEdges == null) f.maxEdges = 20;
-    f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 3, core: 'nitens', anchor: null }, f.params || {});
+    if (f.maxEdges == null) f.maxEdges = 10;
+    f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 1, core: 'nitens', anchor: null }, f.params || {});
     f.econ = f.econ || {};
     f.econ.coste = f.econ.coste == null ? null : f.econ.coste;
     f.econ.sp = f.econ.sp || {};
     Object.keys(S).forEach((k) => { f.econ.sp[k] = Object.assign({ planta: null, rend: null, precio: null, destino: 'papelera' }, f.econ.sp[k] || {}); });
+    if (!f.v5) {   // v0.5: 1 fila de frondosas y máx. 10 linderos
+      f.v5 = 1; if (f.params.rows === 3) f.params.rows = 1;
+      if (f.maxEdges === 20) f.maxEdges = 10;
+      if (f.ringOrig) { f.ring = simplifyRing(f.ringOrig, f.maxEdges); f.edges = []; f.params.anchor = null; }
+    }
     if (f.ring) PF.ensureEdges(f);
     return f;
   }
@@ -494,7 +499,7 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.5 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.6 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -504,7 +509,7 @@ details>*:not(summary){margin-bottom:6px}
   }
   // Simplifica el contorno (Visvalingam) hasta un máximo de vértices y elimina quiebros < 3 m²
   function simplifyRing(ring, maxN, minArea) {
-    maxN = Math.max(3, Math.round(maxN || 20)); minArea = minArea == null ? 3 : minArea;
+    maxN = Math.max(3, Math.round(maxN || 10)); minArea = minArea == null ? 12 : minArea;
     if (ring.length <= 3) return ring.slice();
     const cc = PF.centroidLL(ring), pj = PF.makeProj(cc[0], cc[1]);
     let pts = ring.map((p) => ({ p: p, xy: pj.toXY(p[0], p[1]) }));
@@ -1001,7 +1006,7 @@ details>*:not(summary){margin-bottom:6px}
         if (mapReady) { const p = finca.ring[i], q = finca.ring[(i + 1) % finca.ring.length]; map.easeTo({ center: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] }); }
         break;
       case 'recalc': recalc(); break;
-      case 'resimp': if (!finca.ringOrig) { toast('Vuelve a elegir la parcela en SIGPAC'); break; } finca.maxEdges = Math.max(3, Math.min(60, Math.round(num(finca.maxEdges, 20)))); finca.ring = simplifyRing(finca.ringOrig, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1; recalc(); renderTab(); toast(finca.ring.length + ' linderos (se han reiniciado sus tipos)'); break;
+      case 'resimp': if (!finca.ringOrig) { toast('Vuelve a elegir la parcela en SIGPAC'); break; } finca.maxEdges = Math.max(3, Math.min(60, Math.round(num(finca.maxEdges, 10)))); finca.ring = simplifyRing(finca.ringOrig, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1; recalc(); renderTab(); toast(finca.ring.length + ' linderos (se han reiniciado sus tipos)'); break;
       case 'optimize': {
         if (!prep) { toast('Dibuja o importa una finca primero'); break; }
         toast('Calculando mejor ángulo…', 8000);

@@ -151,7 +151,7 @@
     var shU = +P.shU || 0, shV = +P.shV || 0;
     var ox = prep.anchor[0], oy = prep.anchor[1];
     var ring = prep.ring, n = ring.length, edges = prep.edges;
-    var core = P.core, rowsDepth = (+P.rows || 0) * Math.min(sx, sy);
+    var core = P.core, nRows = Math.max(0, +P.rows || 0), rowsDepth = nRows * Math.min(sx, sy);  // filas de frondosas: la 1.ª a la distancia legal, las siguientes cada marco
 
     var umin = Infinity, umax = -Infinity, vmin = Infinity, vmax = -Infinity, i, j;
     for (i = 0; i < n; i++) {
@@ -167,7 +167,7 @@
     var depth = [];
     for (i = 0; i < n; i++) {
       var e = edges[i];
-      depth.push(e.franja ? Math.max(prep.sb(i, e.especie) + rowsDepth, prep.sb(i, core)) : -1);
+      depth.push(e.franja && nRows > 0 ? prep.sb(i, e.especie) + rowsDepth : -1);
     }
 
     var trees = [], counts = {}, total = 0, d = new Array(n);
