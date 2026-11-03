@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v1.1</title>
+<title>PLANTFINC v1.2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -770,7 +770,7 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v1.1 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v1.2 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -1552,8 +1552,90 @@ details>*:not(summary){margin-bottom:6px}
     }
     const page1 = head(title + m + pie) + '</svg>';
 
+    /* ---- página: plano de replanteo ---- */
+    const pj = prep.pj;
+    const utm29 = (lon, lat) => {
+      const a = 6378137, f = 1 / 298.257222101, e2 = f * (2 - f), ep = e2 / (1 - e2), D = Math.PI / 180, ph = lat * D, la = (lon + 9) * D;
+      const N = a / Math.sqrt(1 - e2 * Math.sin(ph) ** 2), T = Math.tan(ph) ** 2, Cc = ep * Math.cos(ph) ** 2, A = la * Math.cos(ph);
+      const M0 = a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 ** 3 / 256) * ph - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * ph) + (15 * e2 * e2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * ph) - (35 * e2 ** 3 / 3072) * Math.sin(6 * ph));
+      const x = 0.9996 * N * (A + (1 - T + Cc) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * Cc - 58 * ep) * A ** 5 / 120) + 500000;
+      const y = 0.9996 * (M0 + N * Math.tan(ph) * (A * A / 2 + (5 - T + 9 * Cc + 4 * Cc * Cc) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * Cc - 330 * ep) * A ** 6 / 720));
+      return [x, y];
+    };
+    const fm2 = (v) => fmtM(v);
+    const pa = finca.params, th = (+pa.angle || 0) * Math.PI / 180, ca = Math.cos(th), sa = Math.sin(th), ax = prep.anchor[0], ay = prep.anchor[1];
+    const lat = res.trees.map((t) => {
+      const dx = t.x - ax, dy = t.y - ay, u = dx * ca + dy * sa, v = -dx * sa + dy * ca, fi = (u - (+pa.shU || 0)) / pa.sx, fj = (v - (+pa.shV || 0)) / pa.sy;
+      const i = Math.round(fi), j = Math.round(fj), on = Math.abs(fi - i) * pa.sx < 0.03 && Math.abs(fj - j) * pa.sy < 0.03;
+      return { t: t, u: u, v: v, i: i, j: j, on: on };
+    });
+    const onL = lat.filter((q) => q.on), manualN = lat.length - onL.length;
+    const rowsM = {}, colsM = {};
+    onL.forEach((q) => { (rowsM[q.j] = rowsM[q.j] || []).push(q); (colsM[q.i] = colsM[q.i] || []).push(q); });
+    const rowKeys = Object.keys(rowsM).map(Number).sort((a, b) => a - b), colKeys = Object.keys(colsM).map(Number).sort((a, b) => a - b);
+    const MH3 = land ? 148 : 188;
+    const den3 = dens.find((d) => w * 1000 / d <= MW - 16 && h * 1000 / d <= MH3 - 16) || 50000, k3 = 1000 / den3;
+    const X3 = (x) => ((MW - w * k3) / 2 + (x - minx) * k3), Y3 = (y) => ((MH3 - h * k3) / 2 + (maxy - y) * k3);
+    const f1 = (v) => (+v).toFixed(2);
+    const fsz = 3, lblStep = Math.max(1, Math.ceil(5 / (Math.min(pa.sx, pa.sy) * k3)));
+    let r3 = '<defs><clipPath id="c3"><rect width="' + MW + '" height="' + MH3 + '"/></clipPath></defs><g transform="translate(' + M + ',' + MY + ')"><rect width="' + MW + '" height="' + MH3 + '" fill="#fff" stroke="#555" stroke-width="0.35"/><g clip-path="url(#c3)">';
+    r3 += '<path d="' + ring.map((p, i) => (i ? 'L' : 'M') + f1(X3(p[0])) + ',' + f1(Y3(p[1]))).join('') + 'Z" fill="#f7fbf2" stroke="none"/>';
+    // líneas de filas y columnas (solo entre el primer y el último árbol)
+    const lin = (a, b, col) => '<line x1="' + f1(X3(a.t.x)) + '" y1="' + f1(Y3(a.t.y)) + '" x2="' + f1(X3(b.t.x)) + '" y2="' + f1(Y3(b.t.y)) + '" stroke="' + col + '" stroke-width="0.12"/>';
+    rowKeys.forEach((j) => { const a = rowsM[j].slice().sort((p, q) => p.u - q.u); r3 += lin(a[0], a[a.length - 1], '#7e57c2'); });
+    colKeys.forEach((i) => { const a = colsM[i].slice().sort((p, q) => p.v - q.v); r3 += lin(a[0], a[a.length - 1], '#26a69a'); });
+    const rr3 = Math.max(0.3, Math.min(pa.sx, pa.sy) * k3 * 0.22);
+    lat.forEach((q) => { r3 += '<circle cx="' + f1(X3(q.t.x)) + '" cy="' + f1(Y3(q.t.y)) + '" r="' + rr3.toFixed(2) + '" fill="' + S[q.t.sp].color + '"' + (q.on ? '' : ' stroke="#ef6c00" stroke-width="0.25"') + '/>'; });
+    ring.forEach((p, i) => { const q = ring[(i + 1) % ring.length]; r3 += '<line x1="' + f1(X3(p[0])) + '" y1="' + f1(Y3(p[1])) + '" x2="' + f1(X3(q[0])) + '" y2="' + f1(Y3(q[1])) + '" stroke="' + (L[finca.edges[i].tipo] || L.libre).color + '" stroke-width="0.8"/>'; });
+    const rl = runs();
+    rl.forEach((r, ri) => { const i = r.label, p = ring[i], q = ring[(i + 1) % ring.length]; r3 += '<text x="' + f1((X3(p[0]) + X3(q[0])) / 2) + '" y="' + f1((Y3(p[1]) + Y3(q[1])) / 2) + '" font-size="3.6" font-weight="bold" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.7">L' + (ri + 1) + '</text>'; });
+    // numeración de filas (F) y columnas (C): al inicio de cada línea, fuera hacia -u / -v
+    const ux = ca, uy = sa, vx = -sa, vy = ca, off = 3.2 / k3;
+    rowKeys.forEach((j, n) => { if (n % lblStep && n !== rowKeys.length - 1) return; const a = rowsM[j].slice().sort((p, q) => p.u - q.u)[0]; r3 += '<text x="' + f1(X3(a.t.x - ux * off)) + '" y="' + f1(Y3(a.t.y - uy * off) + 1) + '" font-size="2.6" fill="#5e35b1" text-anchor="middle" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.5">F' + (n + 1) + '</text>'; });
+    colKeys.forEach((i, n) => { if (n % lblStep && n !== colKeys.length - 1) return; const a = colsM[i].slice().sort((p, q) => p.v - q.v)[0]; r3 += '<text x="' + f1(X3(a.t.x - vx * off)) + '" y="' + f1(Y3(a.t.y - vy * off) + 1) + '" font-size="2.6" fill="#00796b" text-anchor="middle" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.5">C' + (n + 1) + '</text>'; });
+    // cota del marco (primer par de árboles de la fila central y de la columna central)
+    const midRow = rowsM[rowKeys[Math.floor(rowKeys.length / 2)]] || [];
+    if (midRow.length > 1) { const a = midRow.slice().sort((p, q) => p.u - q.u), p = a[0].t, q = a[1].t; r3 += '<line x1="' + f1(X3(p.x)) + '" y1="' + f1(Y3(p.y)) + '" x2="' + f1(X3(q.x)) + '" y2="' + f1(Y3(q.y)) + '" stroke="#d81b60" stroke-width="0.4"/><text x="' + f1((X3(p.x) + X3(q.x)) / 2 + 1) + '" y="' + f1((Y3(p.y) + Y3(q.y)) / 2 - 1.2) + '" font-size="3" fill="#d81b60" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + fm2(pa.sx) + '</text>'; }
+    const midCol = colsM[colKeys[Math.floor(colKeys.length / 2)]] || [];
+    if (midCol.length > 1) { const a = midCol.slice().sort((p, q) => p.v - q.v), p = a[0].t, q = a[1].t; r3 += '<line x1="' + f1(X3(p.x)) + '" y1="' + f1(Y3(p.y)) + '" x2="' + f1(X3(q.x)) + '" y2="' + f1(Y3(q.y)) + '" stroke="#d81b60" stroke-width="0.4"/><text x="' + f1((X3(p.x) + X3(q.x)) / 2 + 1) + '" y="' + f1((Y3(p.y) + Y3(q.y)) / 2 - 1.2) + '" font-size="3" fill="#d81b60" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + fm2(pa.sy) + '</text>'; }
+    // cota perpendicular de cada lindero al árbol más próximo
+    const segFoot = (px, py, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy; let t = l2 ? ((px - a[0]) * dx + (py - a[1]) * dy) / l2 : 0; t = Math.max(0, Math.min(1, t)); const fx = a[0] + t * dx, fy = a[1] + t * dy; return [fx, fy, Math.hypot(px - fx, py - fy)]; };
+    const refs = [];
+    rl.forEach((r, ri) => {
+      let best = null;
+      res.trees.forEach((t) => { r.edges.forEach((ei) => { const f = segFoot(t.x, t.y, ring[ei], ring[(ei + 1) % ring.length]); if (!best || f[2] < best.d) best = { d: f[2], t: t, fx: f[0], fy: f[1] }; }); });
+      if (!best) return; refs.push({ n: ri + 1, d: best.d });
+      const mx = (best.t.x + best.fx) / 2, my = (best.t.y + best.fy) / 2;
+      r3 += '<line x1="' + f1(X3(best.t.x)) + '" y1="' + f1(Y3(best.t.y)) + '" x2="' + f1(X3(best.fx)) + '" y2="' + f1(Y3(best.fy)) + '" stroke="#d81b60" stroke-width="0.3"/><text x="' + f1(X3(mx)) + '" y="' + f1(Y3(my) - 0.8) + '" font-size="2.8" fill="#d81b60" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.55">' + fm2(best.d) + '</text>';
+    });
+    // árboles principales (esquinas de la malla)
+    const pick = (fn) => { let b = null; onL.forEach((q) => { if (!b || fn(q) < fn(b)) b = q; }); return b; };
+    const cand = [pick((q) => q.u + q.v), pick((q) => -(q.u - q.v)), pick((q) => -(q.u + q.v)), pick((q) => q.u - q.v)].filter(Boolean);
+    const mains = []; cand.forEach((q) => { if (!mains.some((m2) => m2 === q)) mains.push(q); });
+    const nm = ['A', 'B', 'C', 'D'];
+    mains.forEach((q, n) => { r3 += '<circle cx="' + f1(X3(q.t.x)) + '" cy="' + f1(Y3(q.t.y)) + '" r="' + (rr3 * 1.8).toFixed(2) + '" fill="none" stroke="#000" stroke-width="0.35"/><text x="' + f1(X3(q.t.x) + 3) + '" y="' + f1(Y3(q.t.y) - 2) + '" font-size="4" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.8">' + nm[n] + '</text>'; });
+    for (let n = 0; n < mains.length; n++) { const a = mains[n].t, b = mains[(n + 1) % mains.length].t; if (mains.length < 2 || (mains.length === 2 && n === 1)) break; r3 += '<line x1="' + f1(X3(a.x)) + '" y1="' + f1(Y3(a.y)) + '" x2="' + f1(X3(b.x)) + '" y2="' + f1(Y3(b.y)) + '" stroke="#000" stroke-width="0.25" stroke-dasharray="1.5,1"/><text x="' + f1((X3(a.x) + X3(b.x)) / 2) + '" y="' + f1((Y3(a.y) + Y3(b.y)) / 2 - 1) + '" font-size="3" font-weight="bold" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + fm2(Math.hypot(a.x - b.x, a.y - b.y)) + '</text>'; }
+    r3 += '</g>';
+    const Ls3 = [5, 10, 20, 50, 100, 200, 500].find((v) => v * k3 >= 15 && v * k3 <= 60) || 50, sl3 = Ls3 * k3;
+    r3 += '<g transform="translate(5,' + (MH3 - 5) + ')"><rect x="0" y="-1.6" width="' + (sl3 / 2).toFixed(1) + '" height="1.6" fill="#000"/><rect x="' + (sl3 / 2).toFixed(1) + '" y="-1.6" width="' + (sl3 / 2).toFixed(1) + '" height="1.6" fill="#fff" stroke="#000" stroke-width="0.2"/><text x="0" y="-3" font-size="3.2">0</text><text x="' + sl3.toFixed(1) + '" y="-3" font-size="3.2" text-anchor="end">' + Ls3 + ' m</text><text x="' + (sl3 + 3).toFixed(1) + '" y="0" font-size="3.2">Escala 1:' + den3 + '</text></g>';
+    r3 += north(MW - 10, 14, 1.2) + '</g>';
+    // pie: datos de replanteo
+    const az = ((90 - (+pa.angle || 0)) % 180 + 180) % 180, az2 = (az + 90) % 180;
+    let t3 = title.replace('Plan de plantación', 'Plano de replanteo');
+    let yy = MY + MH3 + 6; const col2 = M + (land ? 130 : 100);
+    const tt = (x, y, s, fs, b) => '<text x="' + x + '" y="' + y + '" font-size="' + fs + '"' + (b ? ' font-weight="bold"' : '') + '>' + esc(s) + '</text>';
+    let pie3 = tt(M, yy, 'Malla de plantación', 3.9, 1); yy += 5.2;
+    [['Marco', fm2(pa.sx) + ' (en fila) × ' + fm2(pa.sy) + ' m (entre filas)'], ['Filas (F)', rowKeys.length + '  ·  rumbo ' + az.toFixed(1) + '° (azimut desde el norte)'], ['Columnas (C)', colKeys.length + '  ·  rumbo ' + az2.toFixed(1) + '°'], ['Árboles', res.total + (manualN ? ' (' + manualN + ' a mano, aro naranja)' : '')]].forEach((r) => { pie3 += tt(M, yy, r[0] + ':', 3.4, 1) + tt(M + 26, yy, r[1], 3.4); yy += 4.7; });
+    yy += 1.5; pie3 += tt(M, yy, 'Distancia perpendicular árbol más próximo → lindero', 3.6, 1); yy += 4.6;
+    pie3 += tt(M, yy, refs.map((r) => 'L' + r.n + ': ' + fm2(r.d) + ' m').join('   ·   ').slice(0, 130), 3.2); yy += 5;
+    let ty3 = MY + MH3 + 6;
+    pie3 += tt(col2, ty3, 'Árboles principales (UTM ETRS89, huso 29N)', 3.9, 1); ty3 += 5.2;
+    mains.forEach((q, n) => { const ll = pj.toLL(q.t.x, q.t.y), u = utm29(ll[0], ll[1]); let dl = Infinity, lnum = 0; rl.forEach((r, ri) => { r.edges.forEach((ei) => { const f = segFoot(q.t.x, q.t.y, ring[ei], ring[(ei + 1) % ring.length]); if (f[2] < dl) { dl = f[2]; lnum = ri + 1; } }); }); pie3 += tt(col2, ty3, nm[n] + '  X ' + u[0].toFixed(1) + '  Y ' + u[1].toFixed(1) + '   (F' + (rowKeys.indexOf(q.j) + 1) + '/C' + (colKeys.indexOf(q.i) + 1) + ')  a L' + lnum + ': ' + fm2(dl) + ' m', 3.1); ty3 += 4.6; });
+    pie3 += tt(col2, ty3 + 1, 'Replanteo: fijar A y B con GPS, tender cordel A–B (fila) y', 2.8) + tt(col2, ty3 + 4.6, 'escuadrar con 3-4-5 la columna; marcar cada ' + fm2(pa.sx) + ' m y cada ' + fm2(pa.sy) + ' m.', 2.8);
+    const page3 = head(t3 + r3 + pie3) + '</svg>';
+
     /* ---- página 2: isométrico 3D ---- */
-    const pj = prep.pj, nxy = 44, cx = w / nxy, cy = h / nxy;
+    const nxy = 44, cx = w / nxy, cy = h / nxy;
     const z0 = (() => { for (let i = 0; i < ring.length; i++) { const ll = pj.toLL(ring[i][0], ring[i][1]), v = mdt ? mdtSample(ll[0], ll[1]) : null; if (v != null) return v; } return 0; })();
     let haveZ = !!mdt && z0 !== 0;
     const zAt = (x, y) => { if (!haveZ) return 0; const ll = pj.toLL(x, y), v = mdtSample(ll[0], ll[1]); return v == null ? z0 : v; };
@@ -1590,8 +1672,8 @@ details>*:not(summary){margin-bottom:6px}
     iso += '</g>';
     prep.excl.forEach((e) => { if (e.kind === 'poly') iso += '<path d="M' + e.pts.map((p) => Q(p[0], p[1], zAt(p[0], p[1])).join(',')).join('L') + 'Z" fill="#c62828" fill-opacity="0.35" stroke="#c62828" stroke-width="0.25"/>'; });
     const tr = res.trees.map((t) => { const z = zAt(t.x, t.y), q = Q(t.x, t.y, z); return { q: q, d: t.x + t.y, sp: t.sp }; }).sort((a, b) => b.d - a.d);
-    const tr2 = Math.max(0.45, Math.min(finca.params.sx, finca.params.sy) * sc * 0.32), th = tr2 * 2.2;
-    tr.forEach((t) => { iso += '<line x1="' + t.q[0] + '" y1="' + t.q[1] + '" x2="' + t.q[0] + '" y2="' + (t.q[1] - th).toFixed(2) + '" stroke="#5d4037" stroke-width="' + (tr2 * 0.25).toFixed(2) + '"/><circle cx="' + t.q[0] + '" cy="' + (t.q[1] - th).toFixed(2) + '" r="' + tr2.toFixed(2) + '" fill="' + S[t.sp].color + '" stroke="#fff" stroke-width="0.06"/>'; });
+    const tr2 = Math.max(0.45, Math.min(finca.params.sx, finca.params.sy) * sc * 0.32), thh = tr2 * 2.2;
+    tr.forEach((t) => { iso += '<line x1="' + t.q[0] + '" y1="' + t.q[1] + '" x2="' + t.q[0] + '" y2="' + (t.q[1] - thh).toFixed(2) + '" stroke="#5d4037" stroke-width="' + (tr2 * 0.25).toFixed(2) + '"/><circle cx="' + t.q[0] + '" cy="' + (t.q[1] - thh).toFixed(2) + '" r="' + tr2.toFixed(2) + '" fill="' + S[t.sp].color + '" stroke="#fff" stroke-width="0.06"/>'; });
     ring.forEach((p, i) => { const q = (i + 1) % ring.length; iso += '<line x1="' + ringQ[i][0] + '" y1="' + ringQ[i][1] + '" x2="' + ringQ[q][0] + '" y2="' + ringQ[q][1] + '" stroke="' + (L[finca.edges[i].tipo] || L.libre).color + '" stroke-width="0.7"/>'; });
     iso += '</g>';
     // norte: dirección (0,1) proyectada
@@ -1615,12 +1697,12 @@ details>*:not(summary){margin-bottom:6px}
     const page2 = head(p2) + '</svg>';
 
     try {
-      const j1 = await svgToJpeg(page1, PW, PH), j2 = await svgToJpeg(page2, PW, PH);
-      const pdf = makePDF([j1, j2], PW / 25.4 * 72, PH / 25.4 * 72);
+      const j1 = await svgToJpeg(page1, PW, PH), j3 = await svgToJpeg(page3, PW, PH), j2 = await svgToJpeg(page2, PW, PH);
+      const pdf = makePDF([j1, j3, j2], PW / 25.4 * 72, PH / 25.4 * 72);
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
       a.download = 'informe-' + slug(finca.name) + '.pdf'; document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-      toast('PDF generado (' + (land ? 'apaisado' : 'vertical') + ', 2 páginas)', 4000);
+      toast('PDF generado (' + (land ? 'apaisado' : 'vertical') + ', 3 páginas)', 4000);
     } catch (er) { toast('Error al crear el PDF: ' + er.message, 7000); }
   }
 
