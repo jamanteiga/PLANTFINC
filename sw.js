@@ -1,4 +1,4 @@
-const CACHE = 'plantfinc-v0.3.0';
+const CACHE = 'plantfinc-v0.4.0';
 const SHELL = ['./', './index.html', './core.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -19,7 +19,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(e.request).then((r) => {
       const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); return r;
     }).catch(() => caches.match(e.request)));
-  } else if (u.hostname === 'unpkg.com') {
+  } else if ((u.hostname === 'unpkg.com' || u.hostname === 'cdn.jsdelivr.net')) {
     // librerías: caché primero
     e.respondWith(caches.match(e.request).then((m) => m || fetch(e.request).then((r) => {
       const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); return r;

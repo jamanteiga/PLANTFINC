@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v0.3</title>
+<title>PLANTFINC v0.4</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -103,6 +103,9 @@ details>*:not(summary){margin-bottom:6px}
 .nbody{padding:10px 12px;display:grid;gap:7px;overflow-y:auto}
 .empty{text-align:center;color:#777;padding:40px 10px;font-size:.9rem}
 #hmenu{right:8px;top:6px;z-index:40;min-width:180px}
+#sgbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
+#sgbar .g3{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:6px}
+.btn:disabled{opacity:.45}
 </style>
 </head>
 <body>
@@ -136,6 +139,15 @@ details>*:not(summary){margin-bottom:6px}
     <button class="hbtn on" id="btn-gps">GPS activo</button>
   </div>
 
+  <div id="sgbar" class="hidden">
+    <div id="sg-info" class="muted">Acércate hasta ver las parcelas SIGPAC (líneas naranjas).</div>
+    <div class="g3">
+      <button class="btn sec" id="sg-x">Cancelar</button>
+      <button class="btn sec" id="sg-me">&#x1F4CD; Mi posición</button>
+      <button class="btn" id="sg-use" disabled>Usar selección</button>
+    </div>
+  </div>
+  <div id="rsheet" class="sheet nsheet hidden"></div>
   <div id="drawbar" class="hidden">
     <div id="drawmsg" class="muted"></div>
     <div class="g3">
@@ -157,8 +169,7 @@ details>*:not(summary){margin-bottom:6px}
     <div class="nbody">
       <div><label>Nombre</label><input id="n-name" placeholder="p. ej. A Veiga Pol. 508 Parc. 1581"></div>
       <div><label>Concello</label><select id="n-conc"></select></div>
-      <button class="btn" data-act="n-draw">&#x270F;&#xFE0F; Dibujarla en el mapa</button>
-      <button class="btn" data-act="n-pick">&#x1F4CD; Tocar la parcela SIGPAC en el mapa</button>
+      <button class="btn" data-act="n-pick">&#x1F5FA; Elegir la parcela en el mapa SIGPAC</button>
       <button class="btn sec" data-act="n-gps">&#x1F4CC; Parcela SIGPAC en mi posición</button>
       <div class="g2e"><input id="n-q" placeholder="SIGPAC 15-5-0-0-12-345 ó ref. catastral"><button class="btn" data-act="n-search" style="width:auto">Buscar</button></div>
       <button class="btn sec" data-act="n-import">&#x1F4E5; Importar GeoJSON (p. ej. de LIMPFINC)</button>
@@ -174,6 +185,7 @@ details>*:not(summary){margin-bottom:6px}
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
 <script src="core.js"></script>
 <script>
 (function () {
@@ -290,7 +302,9 @@ details>*:not(summary){margin-bottom:6px}
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
     map.on('load', () => {
-      ['finca', 'edges', 'trees', 'excl', 'zonas', 'draw', 'gps', 'anchor'].forEach((id) => map.addSource(id, { type: 'geojson', data: EMPTY }));
+      ['sig', 'finca', 'edges', 'trees', 'excl', 'zonas', 'draw', 'gps', 'anchor'].forEach((id) => map.addSource(id, { type: 'geojson', data: EMPTY }));
+      map.addLayer({ id: 'sig-fill', type: 'fill', source: 'sig', paint: { 'fill-color': ['case', ['==', ['get', 'sel'], 1], '#43a047', '#ffb74d'], 'fill-opacity': ['case', ['==', ['get', 'sel'], 1], 0.45, 0.08] } });
+      map.addLayer({ id: 'sig-line', type: 'line', source: 'sig', paint: { 'line-color': ['case', ['==', ['get', 'sel'], 1], '#1b5e20', '#ef6c00'], 'line-width': ['case', ['==', ['get', 'sel'], 1], 3, 1.2] } });
       map.addLayer({ id: 'finca-fill', type: 'fill', source: 'finca', paint: { 'fill-color': '#2e7d32', 'fill-opacity': 0.12 } });
       map.addLayer({ id: 'zonas-fill', type: 'fill', source: 'zonas', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.3 } });
       map.addLayer({ id: 'excl-fill', type: 'fill', source: 'excl', filter: ['==', ['get', 't'], 'fill'], paint: { 'fill-color': '#d32f2f', 'fill-opacity': 0.22 } });
@@ -394,6 +408,7 @@ details>*:not(summary){margin-bottom:6px}
   }
   function endDraw() { draw = null; $('#drawbar').classList.add('hidden'); setSrc('draw', EMPTY); setCollapsed(false); }
   function onMapClick(e) {
+    if (sg) { sgTap(e); return; }
     if (!draw) { $('#menu').classList.add('hidden'); return; }
     draw.pts.push([e.lngLat.lng, e.lngLat.lat]);
     if (draw.mode === 'anchor') { finca.params.anchor = draw.pts[0]; endDraw(); recalc(); renderTab(); toast('Matriz anclada'); return; }
@@ -412,6 +427,9 @@ details>*:not(summary){margin-bottom:6px}
     endDraw(); recalc(); renderTab();
     if (m === 'finca') fitFinca();
   }
+  $('#sg-x').onclick = endSigpac;
+  $('#sg-me').onclick = () => { if (lastFix && mapReady) map.flyTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else toast('Sin posición GPS todavía'); };
+  $('#sg-use').onclick = sgUse;
   $('#d-undo').onclick = () => { if (draw) { draw.pts.pop(); updateDraw(); } };
   $('#d-cancel').onclick = endDraw;
   $('#d-ok').onclick = finishDraw;
@@ -432,7 +450,7 @@ details>*:not(summary){margin-bottom:6px}
     setHeader(); if (mapReady) map.resize();
   }
   function showList() {
-    flush(); if (draw) endDraw(); closeSheet();
+    flush(); if (draw) endDraw(); endSigpac(); closeSheet();
     ['#hmenu', '#menu'].forEach((x) => $(x).classList.add('hidden'));
     onList = true; $('#vList').classList.remove('hidden'); $('#fab').classList.remove('hidden');
     renderList(); setHeader();
@@ -451,7 +469,7 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.3 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.4 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -467,6 +485,10 @@ details>*:not(summary){margin-bottom:6px}
 
   const SIGPAC_API = 'https://sigpac-hubcloud.es/ogcapi/collections/recintos/items';
   const USOS_NO = ['CA', 'ED', 'ZU', 'AG', 'IM', 'ZV'];
+  const USOS_SG = { TA: 'Tierra arable', PS: 'Pastizal', PR: 'Pasto arbustivo', PA: 'Pasto con arbolado', FO: 'Forestal', FY: 'Frutales', FS: 'Frutos secos', VI: 'Viñedo', OV: 'Olivar', TH: 'Huerta', IV: 'Invernadero', CA: 'Viales', ED: 'Edificaciones', ZU: 'Zona urbana', AG: 'Agua', IM: 'Improductivo', ZC: 'Zona concentrada', CI: 'Cítricos', FL: 'Frutos secos y olivar', ZV: 'Zona censurada', MT: 'Matorral' };
+  const pKey = (p) => [p.provincia, p.municipio, p.agregado || 0, p.zona || 0, p.poligono, p.parcela].join('-');
+  const pTxt = (p) => 'Pol. ' + p.poligono + ' · Parc. ' + p.parcela;
+  const pCodes = (p) => ({ provincia: +p.provincia, municipio: +p.municipio, agregado: +(p.agregado || 0), zona: +(p.zona || 0), poligono: +p.poligono, parcela: +p.parcela });
   async function sigpacQuery(params) {
     const ps = new URLSearchParams(Object.assign({ f: 'json', limit: '500' }, params));
     const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 25000);
@@ -474,41 +496,91 @@ details>*:not(summary){margin-bottom:6px}
       const r = await fetch(SIGPAC_API + '?' + ps, { signal: ctl.signal, headers: { Accept: 'application/geo+json, application/json' } });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
-      return (d.features || []).filter((f) => f.geometry && Object.keys(params).every((k) => k === 'bbox' || !f.properties || f.properties[k] == null || +f.properties[k] === +params[k]));
+      const ks = ['provincia', 'municipio', 'agregado', 'zona', 'poligono', 'parcela', 'recinto'];
+      return (d.features || []).filter((f) => f.geometry && ks.every((k) => params[k] == null || !f.properties || f.properties[k] == null || +f.properties[k] === +params[k]));
     } catch (e) { throw new Error(e.name === 'AbortError' ? 'sin respuesta' : e.message); } finally { clearTimeout(to); }
   }
   function ringsOf(f) { const g = f.geometry; return (g.type === 'Polygon' ? [g.coordinates] : g.coordinates).map((pc) => pc[0].map((c) => [+c[0], +c[1]])); }
-  function useRecintos(feats, name) {
+  async function sigpacUsos(feats) {
+    const falta = feats.filter((f) => f.properties && !f.properties.uso_sigpac).slice(0, 40);
+    await Promise.all(falta.map(async (f) => {
+      const p = f.properties;
+      try {
+        const r = await fetch('https://sigpac-hubcloud.es/servicioconsultassigpac/query/recinfo/' + p.provincia + '/' + p.municipio + '/' + (p.agregado || 0) + '/' + (p.zona || 0) + '/' + p.poligono + '/' + p.parcela + '/' + p.recinto + '.json');
+        const d = await r.json(), x = Array.isArray(d) ? d[0] : d; if (x) { p.uso_sigpac = x.uso_sigpac; p.superficie = x.superficie; }
+      } catch (e) { /* sin uso: se deja marcado */ }
+    }));
+  }
+  // une recintos contiguos → { coords, huecos, partes }
+  function unirRecintos(rings) {
+    const Cl = window.ClipperLib;
+    const area = (r) => PF.stats(r).area;
+    if (!Cl) { const m = rings.slice().sort((a, b) => area(b) - area(a))[0]; return { coords: m, huecos: [], partes: rings.length }; }
+    const cc = PF.centroidLL(rings[0]), pj = PF.makeProj(cc[0], cc[1]), SC = 1000;
+    const toC = (r) => r.map((p) => { const q = pj.toXY(p[0], p[1]); return { X: Math.round(q[0] * SC), Y: Math.round(q[1] * SC) }; });
+    const c = new Cl.Clipper(); rings.forEach((r) => c.AddPath(toC(r), Cl.PolyType.ptSubject, true));
+    const u = new Cl.Paths(); c.Execute(Cl.ClipType.ctUnion, u, Cl.PolyFillType.pftNonZero, Cl.PolyFillType.pftNonZero);
+    const co = new Cl.ClipperOffset(2, 20); co.AddPaths(u, Cl.JoinType.jtMiter, Cl.EndType.etClosedPolygon); const a = new Cl.Paths(); co.Execute(a, 0.05 * SC);
+    const co2 = new Cl.ClipperOffset(2, 20); co2.AddPaths(a, Cl.JoinType.jtMiter, Cl.EndType.etClosedPolygon); const b = new Cl.Paths(); co2.Execute(b, -0.05 * SC);
+    const fr = (pa) => pa.map((q) => pj.toLL(q.X / SC, q.Y / SC));
+    const outs = b.filter((pa) => Cl.Clipper.Orientation(pa)).sort((x, y) => Math.abs(Cl.Clipper.Area(y)) - Math.abs(Cl.Clipper.Area(x)));
+    if (!outs.length) return null;
+    const holes = b.filter((pa) => !Cl.Clipper.Orientation(pa) && Math.abs(Cl.Clipper.Area(pa)) / SC / SC > 4 && Cl.Clipper.PointInPolygon(pa[0], outs[0]) === 1);
+    return { coords: fr(outs[0]), huecos: holes.map(fr), partes: outs.length };
+  }
+  function applyRecintos(sel, name) {
+    const u = unirRecintos(sel.map((r) => r.ring));
+    if (!u) { toast('No se pudo formar el contorno', 5000); return; }
+    setRing(u.coords, name);
+    (u.huecos || []).forEach((h) => finca.exclusions.push({ kind: 'poly', coords: h }));
+    if (u.huecos && u.huecos.length) recalc();
+    renderTab();
+    toast(u.partes > 1 ? 'Los recintos no son contiguos: se usa la parte mayor (' + u.partes + ' partes)' : 'Finca cargada desde SIGPAC · ' + (PF.stats(u.coords).area / 10000).toFixed(3) + ' ha', 5000);
+  }
+  // feats: recintos SIGPAC (de una o varias parcelas) → hoja para marcar los que forman la finca
+  async function flowParcels(feats) {
     if (!feats.length) { toast('SIGPAC no devolvió ninguna parcela', 5000); return; }
-    let best = null, bestA = -1, n = 0;
-    feats.forEach((f) => {
-      if (USOS_NO.indexOf((f.properties || {}).uso_sigpac) >= 0) return;
-      ringsOf(f).forEach((r) => { n++; const a = PF.stats(r).area; if (a > bestA) { bestA = a; best = r; } });
-    });
-    if (!best) { toast('Solo hay recintos no utilizables (vial, edificación, agua…)', 5000); return; }
-    const closed = best.length > 3 && best[0][0] === best[best.length - 1][0] && best[0][1] === best[best.length - 1][1];
-    setRing(closed ? best.slice(0, -1) : best, name);
-    toast(n > 1 ? 'Cargado el recinto mayor de ' + n + '. Revisa que sea toda la finca.' : 'Parcela SIGPAC cargada', 5000);
+    toast('Leyendo recintos de SIGPAC…', 8000);
+    try { await sigpacUsos(feats); } catch (e) { /* */ }
+    const rec = [];
+    feats.forEach((f) => ringsOf(f).forEach((ring) => rec.push({ p: f.properties || {}, ring: ring, area: PF.stats(ring).area })));
+    rec.sort((a, b) => (a.p.poligono - b.p.poligono) || (a.p.parcela - b.p.parcela) || (a.p.recinto - b.p.recinto));
+    const parcelas = []; const seen = {};
+    rec.forEach((r) => { const k = pKey(r.p); if (!seen[k]) { seen[k] = 1; parcelas.push(r.p); } });
+    const name = pTxt(parcelas[0]) + (parcelas.length > 1 ? ' +' + (parcelas.length - 1) : '');
+    if (rec.length === 1) { applyRecintos(rec, name); return; }
+    const varias = parcelas.length > 1;
+    const sh = $('#rsheet');
+    sh.innerHTML = '<div class="sh"><b>' + (varias ? parcelas.length + ' parcelas SIGPAC' : esc(pTxt(parcelas[0]))) + '</b><button id="r-x" aria-label="Cerrar">&#x2715;</button></div><div class="nbody">' +
+      '<div class="muted">Marca los recintos que forman la finca. Viales, edificaciones, agua e improductivo salen desmarcados.</div>' +
+      rec.map((r, i) => '<label class="chk" style="justify-content:space-between"><span><input type="checkbox" data-i="' + i + '"' + (USOS_NO.indexOf(r.p.uso_sigpac) >= 0 ? '' : ' checked') + '> ' + (varias ? esc(pTxt(r.p)) + ' · ' : '') + 'Rec. ' + r.p.recinto + ' · ' + esc(USOS_SG[r.p.uso_sigpac] || r.p.uso_sigpac || '—') + '</span><b>' + (r.area >= 10000 ? (r.area / 10000).toFixed(3) + ' ha' : Math.round(r.area) + ' m²') + '</b></label>').join('') +
+      '<div class="muted" id="r-tot"></div><button class="btn" id="r-ok">Usar como finca</button></div>';
+    sh.classList.remove('hidden');
+    const cbs = [].slice.call(sh.querySelectorAll('input[type=checkbox]'));
+    const sel = () => cbs.filter((x) => x.checked).map((x) => rec[+x.dataset.i]);
+    const tot = () => { const s = sel(); $('#r-tot').textContent = s.length ? 'Seleccionado: ' + (s.reduce((a, r) => a + r.area, 0) / 10000).toFixed(3) + ' ha' : 'Marca al menos un recinto'; };
+    cbs.forEach((x) => { x.onchange = tot; }); tot();
+    $('#r-x').onclick = () => sh.classList.add('hidden');
+    $('#r-ok').onclick = () => { const s = sel(); if (!s.length) { toast('Marca al menos un recinto'); return; } sh.classList.add('hidden'); applyRecintos(s, name); };
   }
   const NET_ERR = (e) => 'No se pudo consultar SIGPAC (' + e.message + ').';
   async function sigpacParcel(a) {
-    try { toast('Consultando SIGPAC…');
-      useRecintos(await sigpacQuery({ provincia: +a[0], municipio: +a[1], agregado: +a[2], zona: +a[3], poligono: +a[4], parcela: +a[5] }), 'SIGPAC ' + a.join('-'));
-    } catch (e) { toast(NET_ERR(e), 6000); }
+    try { toast('Consultando SIGPAC…'); await flowParcels(await sigpacQuery({ provincia: +a[0], municipio: +a[1], agregado: +a[2], zona: +a[3], poligono: +a[4], parcela: +a[5] })); }
+    catch (e) { toast(NET_ERR(e), 6000); }
   }
   async function parcelAtPoint(lng, lat) {
     try { toast('Consultando SIGPAC…');
       const d = 0.00003, fs = await sigpacQuery({ bbox: [lng - d, lat - d, lng + d, lat + d].map((v) => v.toFixed(6)).join(',') });
-      const hit = fs.filter((f) => ringsOf(f).some((r) => PF.inPoly(lng, lat, r)));
-      useRecintos(hit.length ? hit : fs, 'Recinto SIGPAC');
+      const hit = fs.filter((f) => ringsOf(f).some((r) => PF.inPoly(lng, lat, r)))[0] || fs[0];
+      if (!hit) { toast('No hay parcela SIGPAC en ese punto', 5000); return; }
+      await flowParcels(await sigpacQuery(pCodes(hit.properties)));
     } catch (e) { toast(NET_ERR(e), 6000); }
   }
   async function catastroParcel(rc) {
     const m = String(rc).toUpperCase().replace(/[\s-]/g, '').match(/^(\d{2})(\d{3})([A-Z])(\d{3})(\d{5})/);
     if (!m) { toast('Referencia catastral no válida', 5000); return; }
-    try { toast('Consultando SIGPAC…');
-      useRecintos(await sigpacQuery({ provincia: +m[1], municipio: +m[2], poligono: +m[4], parcela: +m[5] }), 'RC ' + rc.slice(0, 14));
-    } catch (e) { toast(NET_ERR(e), 6000); }
+    try { toast('Consultando SIGPAC…'); await flowParcels(await sigpacQuery({ provincia: +m[1], municipio: +m[2], poligono: +m[4], parcela: +m[5] })); }
+    catch (e) { toast(NET_ERR(e), 6000); }
   }
   function searchParcel(q) {
     q = (q || '').trim();
@@ -516,6 +588,59 @@ details>*:not(summary){margin-bottom:6px}
     if (m) return sigpacParcel(m.slice(1, 7));
     if (/^[0-9A-Za-z]{14}/.test(q.replace(/\s/g, ''))) return catastroParcel(q.replace(/\s/g, ''));
     toast('Formato no reconocido: SIGPAC prov-mun-agg-zona-pol-parcela o referencia catastral (14/20)');
+  }
+
+  /* ---------- selección de parcela en el mapa SIGPAC ---------- */
+  let sg = null;
+  function sgPaint() {
+    const f = [];
+    sg.feats.forEach((arr, k) => arr.forEach((ft) => f.push({ type: 'Feature', properties: { key: k, sel: sg.sel.has(k) ? 1 : 0 }, geometry: ft.geometry })));
+    setSrc('sig', { type: 'FeatureCollection', features: f });
+    const n = sg.sel.size; $('#sg-use').disabled = !n;
+    $('#sg-info').innerHTML = n ? '<b>' + (n === 1 ? esc(pTxt(sg.sel.values().next().value)) : n + ' parcelas') + '</b> seleccionada' + (n > 1 ? 's' : '') + '. Toca otra para añadirla o la misma para quitarla.'
+      : (map.getZoom() < 16 ? 'Acércate hasta ver las parcelas SIGPAC (líneas naranjas).' : 'Toca tu parcela.');
+  }
+  async function sgLoad() {
+    if (!sg) return;
+    if (map.getZoom() < 16) { sgPaint(); return; }
+    const b = map.getBounds(), caja = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => v.toFixed(5)).join(',');
+    if (caja === sg.box) return; sg.box = caja; $('#sg-info').textContent = 'Cargando parcelas SIGPAC…';
+    try {
+      const fs = await sigpacQuery({ bbox: caja, limit: '1000' });
+      if (!sg) return;
+      fs.forEach((f) => { const k = pKey(f.properties || {}); const arr = sg.feats.get(k) || []; const id = (f.properties || {}).dn_pk || (k + '-' + (f.properties || {}).recinto); if (!arr.some((x) => x.id === id)) { f.id = id; arr.push(f); } sg.feats.set(k, arr); sg.props.set(k, f.properties); });
+      if (sg.feats.size > 4000) { const keep = Array.from(sg.feats.keys()).slice(-2000); const nf = new Map(); keep.forEach((k) => nf.set(k, sg.feats.get(k))); sg.feats = nf; }
+    } catch (e) { toast('No se pudo consultar SIGPAC: ' + e.message, 5000); }
+    if (sg) sgPaint();
+  }
+  function startSigpac() {
+    if (!mapReady) { toast('El mapa no está disponible'); return; }
+    closeSheet(); $('#nsheet').classList.add('hidden');
+    sg = { feats: new Map(), props: new Map(), sel: new Map(), box: '' };
+    $('#sgbar').classList.remove('hidden');
+    if (finca && finca.ring) { fitFinca(); } else if (lastFix) map.jumpTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else if (map.getZoom() < 16) map.jumpTo({ zoom: 16.5 });
+    sg.h = () => { clearTimeout(sg.t); sg.t = setTimeout(sgLoad, 350); };
+    map.on('moveend', sg.h); sgPaint(); setTimeout(sgLoad, 300);
+  }
+  function endSigpac() {
+    if (!sg) return;
+    map.off('moveend', sg.h); clearTimeout(sg.t); sg = null; setSrc('sig', EMPTY); $('#sgbar').classList.add('hidden');
+  }
+  function sgTap(e) {
+    const fs = map.queryRenderedFeatures(e.point, { layers: ['sig-fill'] });
+    if (!fs.length) return;
+    const k = fs[0].properties.key;
+    if (sg.sel.has(k)) sg.sel.delete(k); else sg.sel.set(k, sg.props.get(k));
+    sgPaint();
+  }
+  async function sgUse() {
+    const ps = Array.from(sg.sel.values()); if (!ps.length) return;
+    toast('Descargando parcelas completas…', 10000);
+    try {
+      let all = [];
+      for (let i = 0; i < ps.length; i++) all = all.concat(await sigpacQuery(pCodes(ps[i])));
+      endSigpac(); await flowParcels(all);
+    } catch (e) { toast(NET_ERR(e), 6000); }
   }
 
   /* ---------- GPS ---------- */
@@ -647,7 +772,7 @@ details>*:not(summary){margin-bottom:6px}
 
   function tabFinca() {
     const saved = Object.keys(store.fincas).map((id) => store.fincas[id]);
-    return '<div class="g2"><button class="btn" data-act="draw-finca">&#x270F;&#xFE0F; Dibujar finca</button><button class="btn" data-act="pick">&#x1F4CD; Tocar parcela SIGPAC</button></div>' +
+    return '<div class="g2"><button class="btn" data-act="sigpac-map" style="grid-column:1/-1">&#x1F5FA; Elegir parcela en el mapa SIGPAC</button></div>' +
       '<div class="g2e"><input id="q" placeholder="SIGPAC 15-5-0-0-12-345 ó ref. catastral"><button class="btn" data-act="search" style="width:auto">Buscar</button></div>' +
       '<div class="g2"><button class="btn sec" data-act="gps-parcel">&#x1F4CC; Parcela en mi posición</button><button class="btn sec" data-act="import">&#x1F4E5; Importar GeoJSON</button></div>' +
       '<details><summary>Datos de la finca</summary>' +
@@ -798,7 +923,7 @@ details>*:not(summary){margin-bottom:6px}
   }
   $('#file').addEventListener('change', fileImport);
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-act]'); if (!b || !b.closest('#tab-content,#hmenu,#vList,#nsheet,#fab')) return;
+    const b = e.target.closest('[data-act]'); if (!b || !b.closest('#tab-content,#hmenu,#vList,#nsheet,#fab,#rsheet')) return;
     const a = b.dataset.act, i = +b.dataset.i, id = b.dataset.id;
     $('#hmenu').classList.add('hidden');
     switch (a) {
@@ -816,8 +941,8 @@ details>*:not(summary){margin-bottom:6px}
       case 'l-del': if (store.fincas[id] && confirm('¿Eliminar «' + store.fincas[id].name + '» de este dispositivo?')) { delete store.fincas[id]; if (store.last === id) store.last = null; try { localStorage.setItem(LS, JSON.stringify(store)); } catch (er) { /* */ } renderList(); } break;
       case 'l-new': $('#n-conc').innerHTML = optsObj(C, 'abegondo', (v) => v.name); $('#n-name').value = ''; $('#n-q').value = ''; $('#nsheet').classList.remove('hidden'); break;
       case 'l-import': flush(); finca = newFinca(); enterMap(); recalc(); renderTab(); $('#file').click(); break;
-      case 'n-draw': createFromSheet(); startDraw('finca'); break;
-      case 'n-pick': createFromSheet(); startDraw('pick'); break;
+      case 'n-pick': createFromSheet(); startSigpac(); break;
+      case 'sigpac-map': startSigpac(); break;
       case 'n-gps': if (lastFix) { createFromSheet(); parcelAtPoint(lastFix[0], lastFix[1]); } else toast('Sin posición GPS todavía'); break;
       case 'n-search': { const q = $('#n-q').value; if (!q.trim()) { toast('Escribe un código SIGPAC o referencia catastral'); break; } createFromSheet(); searchParcel(q); break; }
       case 'n-import': createFromSheet(); $('#file').click(); break;
