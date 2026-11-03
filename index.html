@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v0.4</title>
+<title>PLANTFINC v0.5</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -106,6 +106,12 @@ details>*:not(summary){margin-bottom:6px}
 #sgbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
 #sgbar .g3{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:6px}
 .btn:disabled{opacity:.45}
+.enum{width:20px;height:20px;border-radius:50%;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.6);pointer-events:none}
+.erow{border:1px solid var(--border);border-radius:8px;padding:4px 6px}
+.e1{display:grid;grid-template-columns:28px 46px 1fr;gap:6px;align-items:center}
+.elen{font-size:.78rem;color:#555}
+.badge{width:26px;height:26px;border-radius:50%;border:2px solid #fff;color:#fff;font-weight:700;font-size:.75rem;box-shadow:0 0 0 1px #888;cursor:pointer}
+.e2{display:grid;gap:5px;margin-top:5px}
 </style>
 </head>
 <body>
@@ -193,8 +199,8 @@ details>*:not(summary){margin-bottom:6px}
   const $ = (s) => document.querySelector(s);
   const S = PF.SPECIES, L = PF.LINDEROS, C = PF.CONCELLOS;
   const LS = 'plantfinc.v1';
-  // Centro por defecto: parroquia de San Xulián de Cabanas (Abegondo), coordenada aproximada (centroide postal). Ajustable en Finca > Fijar centro
-  const CENTER_DEFAULT = [-8.2322, 43.2422];
+  // Centro por defecto: Igrexa de San Xián de Cabanas (Abegondo), O Igrexario. Ajustable en Finca > Fijar centro de inicio
+  const CENTER_DEFAULT = [-8.297659, 43.2115341];
   const EMPTY = { type: 'FeatureCollection', features: [] };
   const USOS = { eucalipto: 'Eucalipto', conifera: 'Conífera (pino…)', frondosas: 'Frondosas', agricola: 'Agrícola / pasto', otro: 'Otro / desconocido' };
   const SUELOS = { forestal: 'Forestal / rústico común', agricola: 'Parcela agrícola / prado', agropec: 'Rústico protección agropecuaria', urbano: 'Núcleo rural / urbano / urbanizable' };
@@ -215,6 +221,7 @@ details>*:not(summary){margin-bottom:6px}
   function migrate(f) {
     const d = { concello: 'abegondo', uso: 'eucalipto', suelo: 'forestal', natura: false, ferrado: null, edges: [], exclusions: [], subzonas: [] };
     Object.keys(d).forEach((k) => { if (f[k] === undefined) f[k] = d[k]; });
+    if (f.maxEdges == null) f.maxEdges = 20;
     f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 3, core: 'nitens', anchor: null }, f.params || {});
     f.econ = f.econ || {};
     f.econ.coste = f.econ.coste == null ? null : f.econ.coste;
@@ -298,7 +305,7 @@ details>*:not(summary){margin-bottom:6px}
       ]
     };
     const c0 = store.center || CENTER_DEFAULT;
-    map = new maplibregl.Map({ container: 'map', style: style, center: c0, zoom: 16, maxPitch: 75, attributionControl: { compact: true } });
+    map = new maplibregl.Map({ container: 'map', style: style, center: c0, zoom: 17, maxPitch: 75, attributionControl: { compact: true } });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
     map.on('load', () => {
@@ -356,9 +363,20 @@ details>*:not(summary){margin-bottom:6px}
     });
     setSrc('excl', { type: 'FeatureCollection', features: ex });
     setSrc('zonas', { type: 'FeatureCollection', features: (finca.subzonas || []).map((z) => polyFeature(z.coords, { color: S[z.sp].color })) });
+    refreshEdgeNums();
     setSrc('anchor', finca.params.anchor ? { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: finca.params.anchor } } : EMPTY);
   }
 
+  let eMarks = [];
+  function refreshEdgeNums() {
+    eMarks.forEach((m) => m.remove()); eMarks = [];
+    if (!mapReady || !finca || !finca.ring || typeof maplibregl.Marker !== 'function') return;
+    finca.ring.forEach((p, i) => {
+      const q = finca.ring[(i + 1) % finca.ring.length], el = document.createElement('div');
+      el.className = 'enum'; el.textContent = i + 1; el.style.background = (L[finca.edges[i] ? finca.edges[i].tipo : 'libre'] || L.libre).color;
+      eMarks.push(new maplibregl.Marker({ element: el }).setLngLat([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]).addTo(map));
+    });
+  }
   function fitFinca() {
     if (!mapReady || !finca.ring) return;
     let a = [Infinity, Infinity], b = [-Infinity, -Infinity];
@@ -409,7 +427,14 @@ details>*:not(summary){margin-bottom:6px}
   function endDraw() { draw = null; $('#drawbar').classList.add('hidden'); setSrc('draw', EMPTY); setCollapsed(false); }
   function onMapClick(e) {
     if (sg) { sgTap(e); return; }
-    if (!draw) { $('#menu').classList.add('hidden'); return; }
+    if (!draw) {
+      $('#menu').classList.add('hidden');
+      if (!onList && finca.ring) {
+        const pt = e.point, fs = map.queryRenderedFeatures([[pt.x - 12, pt.y - 12], [pt.x + 12, pt.y + 12]], { layers: ['edges'] });
+        if (fs.length) { openEdge = +fs[0].properties.i; hlIdx = openEdge; refreshMap(); clearTimeout(hlT); hlT = setTimeout(() => { hlIdx = -1; refreshMap(); }, 3000); openSheet('linderos'); }
+      }
+      return;
+    }
     draw.pts.push([e.lngLat.lng, e.lngLat.lat]);
     if (draw.mode === 'anchor') { finca.params.anchor = draw.pts[0]; endDraw(); recalc(); renderTab(); toast('Matriz anclada'); return; }
     if (draw.mode === 'pick') { const p = draw.pts[0]; endDraw(); parcelAtPoint(p[0], p[1]); return; }
@@ -437,7 +462,7 @@ details>*:not(summary){margin-bottom:6px}
   /* ---------- gestión de fincas ---------- */
   function openFinca(f) {
     flush();
-    finca = migrate(JSON.parse(JSON.stringify(f)));
+    finca = migrate(JSON.parse(JSON.stringify(f))); openEdge = -1;
     enterMap(); recalc(); renderTab();
     if (finca.ring) fitFinca();
   }
@@ -469,7 +494,7 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.4 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v0.5 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -477,8 +502,24 @@ details>*:not(summary){margin-bottom:6px}
     enterMap(); recalc(); renderTab();
     return q;
   }
+  // Simplifica el contorno (Visvalingam) hasta un máximo de vértices y elimina quiebros < 3 m²
+  function simplifyRing(ring, maxN, minArea) {
+    maxN = Math.max(3, Math.round(maxN || 20)); minArea = minArea == null ? 3 : minArea;
+    if (ring.length <= 3) return ring.slice();
+    const cc = PF.centroidLL(ring), pj = PF.makeProj(cc[0], cc[1]);
+    let pts = ring.map((p) => ({ p: p, xy: pj.toXY(p[0], p[1]) }));
+    const tri = (a, b, c) => Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2;
+    while (pts.length > 3) {
+      const n = pts.length; let mi = -1, ma = Infinity;
+      for (let i = 0; i < n; i++) { const ar = tri(pts[(i + n - 1) % n].xy, pts[i].xy, pts[(i + 1) % n].xy); if (ar < ma) { ma = ar; mi = i; } }
+      if (pts.length <= maxN && ma >= minArea) break;
+      pts.splice(mi, 1);
+    }
+    return pts.map((o) => o.p);
+  }
   function setRing(ring, name) {
-    finca.ring = ring; finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null;
+    finca.ringOrig = ring.slice();
+    finca.ring = simplifyRing(ring, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1;
     if (name) finca.name = name;
     recalc(); renderTab(); fitFinca();
   }
@@ -532,7 +573,7 @@ details>*:not(summary){margin-bottom:6px}
     const u = unirRecintos(sel.map((r) => r.ring));
     if (!u) { toast('No se pudo formar el contorno', 5000); return; }
     setRing(u.coords, name);
-    (u.huecos || []).forEach((h) => finca.exclusions.push({ kind: 'poly', coords: h }));
+    (u.huecos || []).forEach((h) => finca.exclusions.push({ kind: 'poly', coords: simplifyRing(h, 12) }));
     if (u.huecos && u.huecos.length) recalc();
     renderTab();
     toast(u.partes > 1 ? 'Los recintos no son contiguos: se usa la parte mayor (' + u.partes + ' partes)' : 'Finca cargada desde SIGPAC · ' + (PF.stats(u.coords).area / 10000).toFixed(3) + ' ha', 5000);
@@ -618,7 +659,7 @@ details>*:not(summary){margin-bottom:6px}
     closeSheet(); $('#nsheet').classList.add('hidden');
     sg = { feats: new Map(), props: new Map(), sel: new Map(), box: '' };
     $('#sgbar').classList.remove('hidden');
-    if (finca && finca.ring) { fitFinca(); } else if (lastFix) map.jumpTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else if (map.getZoom() < 16) map.jumpTo({ zoom: 16.5 });
+    if (finca && finca.ring) { fitFinca(); } else if (lastFix) map.jumpTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else map.jumpTo({ center: store.center || CENTER_DEFAULT, zoom: 17 });
     sg.h = () => { clearTimeout(sg.t); sg.t = setTimeout(sgLoad, 350); };
     map.on('moveend', sg.h); sgPaint(); setTimeout(sgLoad, 300);
   }
@@ -766,7 +807,7 @@ details>*:not(summary){margin-bottom:6px}
   }
 
   /* ---------- pestañas ---------- */
-  let tab = 'finca';
+  let tab = 'finca', openEdge = -1;
   const optsObj = (o, sel, f) => Object.keys(o).map((k) => '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(f(o[k])) + '</option>').join('');
   const val = (v) => (v === null || v === undefined ? '' : esc(v));
 
@@ -782,21 +823,21 @@ details>*:not(summary){margin-bottom:6px}
       '<div class="g2"><div><label>Uso anterior</label><select data-bind="uso">' + optsObj(USOS, finca.uso, (v) => v) + '</select></div>' +
       '<div><label>Suelo</label><select data-bind="suelo">' + optsObj(SUELOS, finca.suelo, (v) => v) + '</select></div></div>' +
       '<label class="chk"><input type="checkbox" data-bind="natura"' + (finca.natura ? ' checked' : '') + '> Red Natura / espacio protegido</label></details>' +
+      '<div class="g2e"><div><label>Máx. linderos (simplifica el contorno de SIGPAC)</label><input type="number" min="3" max="60" step="1" inputmode="numeric" data-bind="maxEdges" value="' + val(finca.maxEdges) + '"></div><button class="btn sec" data-act="resimp" style="width:auto;align-self:end">Simplificar</button></div>' +
       '<div class="g2"><button class="btn sec" data-act="fit">Ver finca</button><button class="btn sec" data-act="save-center">Fijar centro de inicio</button></div>';
   }
 
   function tabLinderos() {
-    if (!finca.ring) return '<div class="muted">Dibuja o importa una finca primero.</div>';
+    if (!finca.ring) return '<div class="muted">Elige primero la parcela en el mapa SIGPAC (pestaña Finca).</div>';
     const st = PF.stats(finca.ring);
-    return '<div class="muted">Indica con qué colinda cada lindero. La distancia mínima legal se aplica a cada árbol según su especie. Si conoces la distancia de la fila exterior del vecino, indícala: se usa si es ≥ al mínimo legal.</div>' +
+    return '<div class="muted">' + finca.edges.length + ' linderos. Cada número está en el mapa sobre su lado; pulsa el número (o el lado en el mapa) para editar sus detalles. Si indicas la distancia de la fila vecina y es ≥ al mínimo legal, se usa.</div>' +
       finca.edges.map((e, i) => {
-        const n = norm[e.tipo];
-        return '<div class="edge"><div class="eh"><b>Lindero ' + (i + 1) + '</b> · ' + st.lengths[i].toFixed(0) + ' m<button class="mini" data-act="hl" data-i="' + i + '">ver</button></div>' +
-          '<div class="g2"><div><label>Colinda con</label><select data-edge="' + i + ':tipo">' + optsObj(L, e.tipo, (v) => v.label) + '</select></div>' +
-          '<div><label>Dist. fila vecina (m)</label><input type="number" step="any" min="0" inputmode="decimal" data-edge="' + i + ':vecino" value="' + val(e.vecino) + '" placeholder="opcional"></div></div>' +
-          '<div class="g2"><label class="chk"><input type="checkbox" data-edge="' + i + ':franja"' + (e.franja ? ' checked' : '') + '> Franja de frondosas</label>' +
-          '<select data-edge="' + i + ':especie">' + optsObj(S, e.especie, (v) => v.name) + '</select></div>' +
-          '<div class="muted">Mínimo legal: frondosa ' + n.fr + ' m · eucalipto/otras ' + n.resto + ' m</div></div>';
+        const n = norm[e.tipo], col = (L[e.tipo] || L.libre).color;
+        return '<div class="erow"><div class="e1"><button class="badge" style="background:' + col + '" data-act="hl" data-i="' + i + '">' + (i + 1) + '</button><span class="elen">' + st.lengths[i].toFixed(0) + ' m</span>' +
+          '<select data-edge="' + i + ':tipo">' + optsObj(L, e.tipo, (v) => v.label) + '</select></div>' +
+          (i === openEdge ? '<div class="e2"><div class="g2"><div><label>Dist. fila vecina (m)</label><input type="number" step="any" min="0" inputmode="decimal" data-edge="' + i + ':vecino" value="' + val(e.vecino) + '" placeholder="opcional"></div>' +
+            '<div><label>Franja de frondosas</label><div class="g2e"><label class="chk"><input type="checkbox" data-edge="' + i + ':franja"' + (e.franja ? ' checked' : '') + '> Sí</label><select data-edge="' + i + ':especie">' + optsObj(S, e.especie, (v) => v.name) + '</select></div></div></div>' +
+            '<div class="muted">Mínimo legal: frondosa ' + n.fr + ' m · eucalipto/otras ' + n.resto + ' m</div></div>' : '') + '</div>';
       }).join('');
   }
 
@@ -955,10 +996,12 @@ details>*:not(summary){margin-bottom:6px}
       }
       case 'save-center': if (mapReady) { const c = map.getCenter(); store.center = [c.lng, c.lat]; try { localStorage.setItem(LS, JSON.stringify(store)); } catch (er) { /* */ } toast('Centro de inicio guardado'); } break;
       case 'hl':
+        openEdge = openEdge === i ? -1 : i; renderTab();
         hlIdx = i; refreshMap(); clearTimeout(hlT); hlT = setTimeout(() => { hlIdx = -1; refreshMap(); }, 3000);
         if (mapReady) { const p = finca.ring[i], q = finca.ring[(i + 1) % finca.ring.length]; map.easeTo({ center: [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2] }); }
         break;
       case 'recalc': recalc(); break;
+      case 'resimp': if (!finca.ringOrig) { toast('Vuelve a elegir la parcela en SIGPAC'); break; } finca.maxEdges = Math.max(3, Math.min(60, Math.round(num(finca.maxEdges, 20)))); finca.ring = simplifyRing(finca.ringOrig, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1; recalc(); renderTab(); toast(finca.ring.length + ' linderos (se han reiniciado sus tipos)'); break;
       case 'optimize': {
         if (!prep) { toast('Dibuja o importa una finca primero'); break; }
         toast('Calculando mejor ángulo…', 8000);
