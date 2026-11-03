@@ -67,6 +67,20 @@ h4{font-size:.85rem;color:var(--pri-dark)}
 #drawbar .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 #toast{position:absolute;left:50%;transform:translateX(-50%);top:70px;background:rgba(30,30,30,.92);color:#fff;padding:8px 14px;border-radius:18px;font-size:.8rem;z-index:40;max-width:90%;text-align:center;display:none}
 .hidden{display:none!important}
+/* compacto */
+input,select{padding:5px 7px;font-size:.85rem;border-radius:6px}
+label{font-size:.68rem;margin-bottom:1px}
+.btn{padding:7px 8px;font-size:.78rem;border-radius:7px}
+#tab-content{padding:8px 10px;gap:6px}
+.edge{padding:6px;gap:4px}
+.sheet{max-height:44%;bottom:calc(46px + env(safe-area-inset-bottom))}
+.sh{padding:6px 12px 4px}.sh b{font-size:.9rem}.sh button{width:26px;height:26px;font-size:.85rem}
+.tb button{padding:4px 2px 5px;font-size:.62rem}.tb button b{font-size:1.05rem}
+details{border:1px solid var(--border);border-radius:8px;padding:0 8px}
+details>summary{font-size:.8rem;font-weight:700;color:var(--pri-dark);padding:7px 0;cursor:pointer}
+details[open]>summary{border-bottom:1px solid var(--border);margin-bottom:6px}
+details>*:not(summary){margin-bottom:6px}
+@media(min-width:800px){.sheet{width:340px;max-height:calc(100% - 70px)}.tb{width:420px}}
 </style>
 </head>
 <body>
@@ -86,7 +100,7 @@ h4{font-size:.85rem;color:var(--pri-dark)}
     <button class="rb" id="btn-lay" aria-label="Capas">&#x1F5C2;</button>
   </div>
   <div class="menu hidden" id="menu">
-    <button class="hbtn" id="btn-base">Satélite</button>
+    <button class="hbtn" id="btn-base">Mapa: OpenStreetMap</button>
     <button class="hbtn" id="btn-3d">Relieve 3D</button>
     <button class="hbtn on" id="btn-gps">GPS activo</button>
   </div>
@@ -122,8 +136,8 @@ h4{font-size:.85rem;color:var(--pri-dark)}
   const $ = (s) => document.querySelector(s);
   const S = PF.SPECIES, L = PF.LINDEROS, C = PF.CONCELLOS;
   const LS = 'plantfinc.v1';
-  // Centro de arranque aproximado (Abegondo). Se puede fijar en Finca > "Fijar centro actual…"
-  const CENTER_DEFAULT = [-8.2984, 43.2188];
+  // Centro por defecto: parroquia de San Xulián de Cabanas (Abegondo), coordenada aproximada (centroide postal). Ajustable en Finca > Fijar centro
+  const CENTER_DEFAULT = [-8.2322, 43.2422];
   const EMPTY = { type: 'FeatureCollection', features: [] };
   const USOS = { eucalipto: 'Eucalipto', conifera: 'Conífera (pino…)', frondosas: 'Frondosas', agricola: 'Agrícola / pasto', otro: 'Otro / desconocido' };
   const SUELOS = { forestal: 'Forestal / rústico común', agricola: 'Parcela agrícola / prado', agropec: 'Rústico protección agropecuaria', urbano: 'Núcleo rural / urbano / urbanizable' };
@@ -216,10 +230,12 @@ h4{font-size:.85rem;color:var(--pri-dark)}
       version: 8,
       sources: {
         osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '&copy; OpenStreetMap' },
+        topo: { type: 'raster', tiles: ['https://a.tile.opentopomap.org/{z}/{x}/{y}.png','https://b.tile.opentopomap.org/{z}/{x}/{y}.png','https://c.tile.opentopomap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 17, attribution: '&copy; OpenStreetMap, SRTM, &copy; OpenTopoMap' },
         pnoa: { type: 'raster', tiles: ['https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0&layer=OI.OrthoimageCoverage&style=default&format=image/jpeg&tilematrixset=GoogleMapsCompatible&tilematrix={z}&tilerow={y}&tilecol={x}'], tileSize: 256, maxzoom: 19, attribution: 'PNOA &copy; IGN' }
       },
       layers: [
         { id: 'osm', type: 'raster', source: 'osm' },
+        { id: 'topo', type: 'raster', source: 'topo', layout: { visibility: 'none' } },
         { id: 'pnoa', type: 'raster', source: 'pnoa', layout: { visibility: 'none' } }
       ]
     };
@@ -244,7 +260,7 @@ h4{font-size:.85rem;color:var(--pri-dark)}
       map.addLayer({ id: 'gps-pt', type: 'circle', source: 'gps', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 7, 'circle-color': '#1976d2', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
       map.addLayer({ id: 'draw-line', type: 'line', source: 'draw', filter: ['==', ['get', 't'], 'line'], paint: { 'line-color': '#ff6f00', 'line-width': 3 } });
       map.addLayer({ id: 'draw-pts', type: 'circle', source: 'draw', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#ff6f00', 'circle-stroke-width': 2 } });
-      mapReady = true;
+      mapReady = true; applyBase();
       const lastId = store.last && store.fincas[store.last];
       if (lastId) openFinca(store.fincas[store.last], true); else { finca = newFinca(); recalc(); renderTab(); }
       startGPS();
@@ -366,29 +382,50 @@ h4{font-size:.85rem;color:var(--pri-dark)}
     recalc(); renderTab(); fitFinca();
   }
 
-  async function fetchJSON(url) {
-    const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  }
-  const NET_MSG = 'No se pudo consultar el servicio (red, CORS o servicio caído). Importa un GeoJSON o dibuja la finca.';
-  async function sigpacParcel(a) {
+  const SIGPAC_API = 'https://sigpac-hubcloud.es/ogcapi/collections/recintos/items';
+  const USOS_NO = ['CA', 'ED', 'ZU', 'AG', 'IM', 'ZV'];
+  async function sigpacQuery(params) {
+    const ps = new URLSearchParams(Object.assign({ f: 'json', limit: '500' }, params));
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 25000);
     try {
-      const gj = await fetchJSON('https://sigpac-hubcloud.es/servicioconsultassigpac/query/recinfoparc/' + a.slice(0, 6).join('/') + '.geojson');
-      setRing(PF.ringFromGeoJSON(gj), 'SIGPAC ' + a.join('-')); toast('Parcela SIGPAC cargada (recinto mayor)');
-    } catch (e) { toast(e.message && !/HTTP|Failed|fetch|Load/i.test(e.message) ? e.message : NET_MSG, 6000); }
-  }
-  async function catastroParcel(rc) {
-    try {
-      const r = await fetch('https://ovc.catastro.meh.es/INSPIRE/wfsCP.aspx?service=wfs&version=2&request=getfeature&STOREDQUERIE_ID=GetParcel&srsname=EPSG::4326&REFCAT=' + encodeURIComponent(rc.slice(0, 14)));
+      const r = await fetch(SIGPAC_API + '?' + ps, { signal: ctl.signal, headers: { Accept: 'application/geo+json, application/json' } });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      setRing(PF.ringFromGML(await r.text()), 'RC ' + rc.slice(0, 14)); toast('Parcela catastral cargada');
-    } catch (e) { toast(e.message && !/HTTP|Failed|fetch|Load/i.test(e.message) ? e.message : NET_MSG, 6000); }
+      const d = await r.json();
+      return (d.features || []).filter((f) => f.geometry && Object.keys(params).every((k) => k === 'bbox' || !f.properties || f.properties[k] == null || +f.properties[k] === +params[k]));
+    } catch (e) { throw new Error(e.name === 'AbortError' ? 'sin respuesta' : e.message); } finally { clearTimeout(to); }
+  }
+  function ringsOf(f) { const g = f.geometry; return (g.type === 'Polygon' ? [g.coordinates] : g.coordinates).map((pc) => pc[0].map((c) => [+c[0], +c[1]])); }
+  function useRecintos(feats, name) {
+    if (!feats.length) { toast('SIGPAC no devolvió ninguna parcela', 5000); return; }
+    let best = null, bestA = -1, n = 0;
+    feats.forEach((f) => {
+      if (USOS_NO.indexOf((f.properties || {}).uso_sigpac) >= 0) return;
+      ringsOf(f).forEach((r) => { n++; const a = PF.stats(r).area; if (a > bestA) { bestA = a; best = r; } });
+    });
+    if (!best) { toast('Solo hay recintos no utilizables (vial, edificación, agua…)', 5000); return; }
+    const closed = best.length > 3 && best[0][0] === best[best.length - 1][0] && best[0][1] === best[best.length - 1][1];
+    setRing(closed ? best.slice(0, -1) : best, name);
+    toast(n > 1 ? 'Cargado el recinto mayor de ' + n + '. Revisa que sea toda la finca.' : 'Parcela SIGPAC cargada', 5000);
+  }
+  const NET_ERR = (e) => 'No se pudo consultar SIGPAC (' + e.message + ').';
+  async function sigpacParcel(a) {
+    try { toast('Consultando SIGPAC…');
+      useRecintos(await sigpacQuery({ provincia: +a[0], municipio: +a[1], agregado: +a[2], zona: +a[3], poligono: +a[4], parcela: +a[5] }), 'SIGPAC ' + a.join('-'));
+    } catch (e) { toast(NET_ERR(e), 6000); }
   }
   async function parcelAtPoint(lng, lat) {
-    try {
-      const gj = await fetchJSON('https://sigpac-hubcloud.es/servicioconsultassigpac/query/recinfobypoint/4258/' + lng.toFixed(7) + '/' + lat.toFixed(7) + '.geojson');
-      setRing(PF.ringFromGeoJSON(gj), 'Recinto SIGPAC'); toast('Recinto SIGPAC cargado');
-    } catch (e) { toast(e.message && !/HTTP|Failed|fetch|Load/i.test(e.message) ? e.message : NET_MSG, 6000); }
+    try { toast('Consultando SIGPAC…');
+      const d = 0.00003, fs = await sigpacQuery({ bbox: [lng - d, lat - d, lng + d, lat + d].map((v) => v.toFixed(6)).join(',') });
+      const hit = fs.filter((f) => ringsOf(f).some((r) => PF.inPoly(lng, lat, r)));
+      useRecintos(hit.length ? hit : fs, 'Recinto SIGPAC');
+    } catch (e) { toast(NET_ERR(e), 6000); }
+  }
+  async function catastroParcel(rc) {
+    const m = String(rc).toUpperCase().replace(/[\s-]/g, '').match(/^(\d{2})(\d{3})([A-Z])(\d{3})(\d{5})/);
+    if (!m) { toast('Referencia catastral no válida', 5000); return; }
+    try { toast('Consultando SIGPAC…');
+      useRecintos(await sigpacQuery({ provincia: +m[1], municipio: +m[2], poligono: +m[4], parcela: +m[5] }), 'RC ' + rc.slice(0, 14));
+    } catch (e) { toast(NET_ERR(e), 6000); }
   }
   function searchParcel(q) {
     q = (q || '').trim();
@@ -424,7 +461,7 @@ h4{font-size:.85rem;color:var(--pri-dark)}
   $('#btn-gps').onclick = () => { if (gpsWatch === null) startGPS(); else stopGPS(); };
 
   /* ---------- 3D y base ---------- */
-  let on3d = false, sat = false;
+  let on3d = false;
   $('#btn-3d').onclick = () => {
     if (!mapReady) return;
     on3d = !on3d; $('#btn-3d').classList.toggle('on', on3d);
@@ -434,12 +471,17 @@ h4{font-size:.85rem;color:var(--pri-dark)}
       toast('Relieve 3D PROVISIONAL (modelo global, no CNIG). Pendiente integrar MDT del CNIG.', 6000);
     } else { map.setTerrain(null); map.easeTo({ pitch: 0, duration: 400 }); }
   };
+  const BASES = [['osm', 'OpenStreetMap'], ['topo', 'OpenTopoMap'], ['pnoa', 'Satélite PNOA']];
+  let baseI = Math.max(0, BASES.findIndex((b) => b[0] === store.base));
+  function applyBase() {
+    if (mapReady) BASES.forEach((b, i) => map.setLayoutProperty(b[0], 'visibility', i === baseI ? 'visible' : 'none'));
+    $('#btn-base').textContent = 'Mapa: ' + BASES[baseI][1];
+  }
   $('#btn-base').onclick = () => {
-    if (!mapReady) return;
-    sat = !sat; $('#btn-base').classList.toggle('on', sat); $('#btn-base').textContent = sat ? 'Mapa base' : 'Satélite';
-    map.setLayoutProperty('pnoa', 'visibility', sat ? 'visible' : 'none');
-    map.setLayoutProperty('osm', 'visibility', sat ? 'none' : 'visible');
+    baseI = (baseI + 1) % BASES.length; store.base = BASES[baseI][0]; applyBase();
+    try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) { /* */ }
   };
+
 
   /* ---------- avisos normativos ---------- */
   function warnings() {
@@ -522,19 +564,19 @@ h4{font-size:.85rem;color:var(--pri-dark)}
 
   function tabFinca() {
     const saved = Object.keys(store.fincas).map((id) => store.fincas[id]);
-    return '<div><label>Nombre</label><input data-bind="name" value="' + val(finca.name) + '"></div>' +
+    return '<div class="g2"><button class="btn" data-act="draw-finca">&#x270F;&#xFE0F; Dibujar finca</button><button class="btn" data-act="pick">&#x1F4CD; Tocar parcela SIGPAC</button></div>' +
+      '<div class="g2e"><input id="q" placeholder="SIGPAC 15-5-0-0-12-345 ó ref. catastral"><button class="btn" data-act="search" style="width:auto">Buscar</button></div>' +
+      '<div class="g2"><button class="btn sec" data-act="gps-parcel">&#x1F4CC; Parcela en mi posición</button><button class="btn sec" data-act="import">&#x1F4E5; Importar GeoJSON</button></div>' +
+      '<details><summary>Datos de la finca</summary>' +
+      '<div><label>Nombre</label><input data-bind="name" value="' + val(finca.name) + '"></div>' +
       '<div class="g2"><div><label>Concello</label><select data-bind="concello">' + optsObj(C, finca.concello, (v) => v.name) + '</select></div>' +
       '<div><label>m² por ferrado</label><input type="number" step="any" min="1" inputmode="decimal" data-bind="ferrado" value="' + val(finca.ferrado) + '" placeholder="' + (C[finca.concello].ferrado || 'pendiente') + '"></div></div>' +
       '<div class="g2"><div><label>Uso anterior</label><select data-bind="uso">' + optsObj(USOS, finca.uso, (v) => v) + '</select></div>' +
-      '<div><label>Clasificación del suelo</label><select data-bind="suelo">' + optsObj(SUELOS, finca.suelo, (v) => v) + '</select></div></div>' +
-      '<label class="chk"><input type="checkbox" data-bind="natura"' + (finca.natura ? ' checked' : '') + '> En Red Natura / espacio protegido</label>' +
-      '<div class="g2"><button class="btn" data-act="draw-finca">Dibujar finca</button><button class="btn sec" data-act="import">Importar GeoJSON</button></div>' +
-      '<div class="g2"><button class="btn sec" data-act="pick">Finca tocando el mapa</button><button class="btn sec" data-act="gps-parcel">Finca en mi posición</button></div>' +
-      '<div><label>SIGPAC (prov-mun-agg-zona-pol-parcela) o referencia catastral</label><div class="g2e"><input id="q" placeholder="15-5-0-0-12-345  ó  refcat"><button class="btn" data-act="search" style="width:auto">Buscar</button></div></div>' +
-      '<div class="g2"><button class="btn sec" data-act="fit">Ver finca</button><button class="btn sec" data-act="center-me">Centrar en mí</button></div>' +
-      '<div><label>Fincas guardadas en este dispositivo</label><div class="g3e"><select id="sel-finca">' + saved.map((f) => '<option value="' + f.id + '"' + (f.id === finca.id ? ' selected' : '') + '>' + esc(f.name) + '</option>').join('') + '</select>' +
-      '<button class="btn sec" style="width:auto" data-act="open">Abrir</button><button class="btn sec" style="width:auto" data-act="new">Nueva</button><button class="btn danger" style="width:auto" data-act="del">Borrar</button></div></div>' +
-      '<button class="btn sec" data-act="save-center">Fijar el centro actual del mapa como inicio</button>' +
+      '<div><label>Suelo</label><select data-bind="suelo">' + optsObj(SUELOS, finca.suelo, (v) => v) + '</select></div></div>' +
+      '<label class="chk"><input type="checkbox" data-bind="natura"' + (finca.natura ? ' checked' : '') + '> Red Natura / espacio protegido</label></details>' +
+      '<details><summary>Fincas guardadas (' + saved.length + ')</summary><div class="g3e"><select id="sel-finca">' + saved.map((f) => '<option value="' + f.id + '"' + (f.id === finca.id ? ' selected' : '') + '>' + esc(f.name) + '</option>').join('') + '</select>' +
+      '<button class="btn sec" style="width:auto" data-act="open">Abrir</button><button class="btn sec" style="width:auto" data-act="new">Nueva</button><button class="btn danger" style="width:auto" data-act="del">Borrar</button></div></details>' +
+      '<div class="g2"><button class="btn sec" data-act="fit">Ver finca</button><button class="btn sec" data-act="save-center">Fijar centro de inicio</button></div>' +
       '<input type="file" id="file" accept=".json,.geojson,application/geo+json,application/json" class="hidden">';
   }
 
@@ -564,7 +606,7 @@ h4{font-size:.85rem;color:var(--pri-dark)}
       '<div class="g2"><button class="btn sec" data-act="anchor-gps">Anclar en mi posición</button><button class="btn sec" data-act="anchor-map">Anclar tocando el mapa</button></div>' +
       (p.anchor ? '<button class="btn danger" data-act="anchor-clear">Quitar anclaje (la matriz vuelve al centro)</button>' : '') +
       '<div id="counts"></div>' +
-      '<h4>Exclusiones y subzonas</h4>' +
+      '<details><summary>Exclusiones y subzonas</summary>' +
       '<div class="g2"><button class="btn sec" data-act="excl-poly">Zona excluida</button><div class="g2e"><button class="btn sec" data-act="excl-line">Línea + buffer</button><input id="buf" type="number" value="15" min="1" style="width:70px" title="Buffer (m)"></div></div>' +
       '<div class="g2e"><select id="zsp">' + optsObj(S, 'castano', (v) => v.name) + '</select><button class="btn sec" style="width:auto" data-act="subzona">Dibujar subzona</button></div>' +
       (finca.exclusions.map((e, i) => '<div class="sp"><span style="flex:1">' + (e.kind === 'line' ? 'Línea + ' + e.buffer + ' m' : 'Zona excluida') + ' #' + (i + 1) + '</span><button class="mini" data-act="del-excl" data-i="' + i + '">borrar</button></div>').join('')) +
@@ -579,24 +621,26 @@ h4{font-size:.85rem;color:var(--pri-dark)}
       '<td><select data-bind="econ.sp.' + sp + '.destino"><option value="papelera"' + (finca.econ.sp[sp].destino === 'papelera' ? ' selected' : '') + '>Papelera/ENCE</option><option value="maderera"' + (finca.econ.sp[sp].destino === 'maderera' ? ' selected' : '') + '>Maderera</option></select></td></tr>';
     return '<div id="counts"></div>' +
       '<div class="g2"><button class="btn" data-act="report">Informe A4</button><button class="btn sec" data-act="export">Exportar GeoJSON</button></div>' +
-      '<h4>Economía (valores editables; vacío = sin dato)</h4>' +
+      '<details><summary>Economía (editable; vacío = sin dato)</summary>' +
       '<div><label>Coste de plantación por árbol, mano de obra (€)</label><input type="number" step="any" inputmode="decimal" data-bind="econ.coste" value="' + val(finca.econ.coste) + '"></div>' +
-      '<div style="overflow-x:auto"><table><tr><th>Especie</th><th>€/planta</th><th>m³/ha</th><th>€/m³</th><th>Destino</th></tr>' + Object.keys(S).map(row).join('') + '</table></div>' +
+      '<div style="overflow-x:auto"><table><tr><th>Especie</th><th>€/planta</th><th>m³/ha</th><th>€/m³</th><th>Destino</th></tr>' + Object.keys(S).map(row).join('') + '</table></div></details>' +
       '<div id="econres"></div>';
   }
 
   function tabNorma() {
     return '<h4>Avisos para esta finca</h4><div id="warns"></div>' +
-      '<h4>Distancias mínimas (m) — editables</h4>' +
+      '<details><summary>Distancias mínimas (m) — editables</summary>' +
       '<div style="overflow-x:auto"><table><tr><th>Colinda con</th><th>Frondosas</th><th>Eucalipto/otras</th></tr>' +
       Object.keys(L).map((k) => '<tr><td>' + esc(L[k].label) + '</td><td><input type="number" step="any" min="0" data-norm="' + k + ':fr" value="' + norm[k].fr + '"></td><td><input type="number" step="any" min="0" data-norm="' + k + ':resto" value="' + norm[k].resto + '"></td></tr>').join('') + '</table></div>' +
-      '<button class="btn sec" data-act="norm-reset">Restaurar valores por defecto</button>' +
+      '<button class="btn sec" data-act="norm-reset">Restaurar valores por defecto</button></details>' +
       '<div class="muted">Base: Lei 7/2012 de montes de Galicia, art. 68 y anexo II (frondosas = especies del anexo I). Carreteras (4/10 m) y pistas (2/4 m): algunas fuentes citan 2 m para frondosas en carreteras; verifica. Las ordenanzas municipales pueden endurecer estas distancias. La moratoria del eucalipto (Lei 11/2021) está prorrogada hasta 31/12/2030, con excepciones. Esta herramienta es una ayuda de planificación; no sustituye la consulta al Distrito Forestal ni a los organismos titulares de ríos, carreteras, ferrocarril y líneas eléctricas.</div>';
   }
 
   function renderTab() {
     const t = { finca: tabFinca, linderos: tabLinderos, matriz: tabMatriz, informe: tabInforme, norma: tabNorma }[tab];
+    const openD = [].slice.call(document.querySelectorAll('#tab-content details[open] > summary')).map((x) => x.textContent);
     $('#tab-content').innerHTML = t();
+    document.querySelectorAll('#tab-content details').forEach((d) => { if (openD.indexOf(d.firstChild.textContent) >= 0) d.open = true; });
     document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('act', sheetOpen && b.dataset.tab === tab));
     $('#sheet-title').textContent = TITLES[tab];
     refreshDynamic();
