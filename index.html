@@ -169,6 +169,7 @@ details>*:not(summary){margin-bottom:6px}
   <div class="menu hidden" id="menu">
     <button class="hbtn" id="btn-base">Mapa: OpenStreetMap</button>
     <button class="hbtn" id="btn-3d">Relieve 3D</button>
+    <button class="hbtn" id="btn-exag">Exagerar relieve ×1.5</button>
     <button class="hbtn on" id="btn-gps">GPS activo</button>
   </div>
 
@@ -1681,8 +1682,8 @@ details>*:not(summary){margin-bottom:6px}
     registerMDT();
     if (changed && map.getSource('dem')) { if (map.getTerrain()) map.setTerrain(null); if (map.getLayer('hs')) map.removeLayer('hs'); map.removeSource('dem'); }
     if (!map.getSource('dem')) map.addSource('dem', { type: 'raster-dem', tiles: ['mdt://{z}/{x}/{y}'], encoding: 'terrarium', tileSize: 256, maxzoom: 13, attribution: 'MDT © IGN/CNIG (CC BY 4.0) · modelo global AWS' });
-    map.setTerrain({ source: 'dem', exaggeration: 1 });
-    if (!map.getLayer('hs')) { try { map.addLayer({ id: 'hs', type: 'hillshade', source: 'dem', paint: { 'hillshade-exaggeration': 0.45, 'hillshade-shadow-color': '#2b3a2b', 'hillshade-highlight-color': '#ffffff', 'hillshade-accent-color': '#5b6b5b' } }, map.getLayer('sig-fill') ? 'sig-fill' : undefined); } catch (e) { /* */ } }
+    map.setTerrain({ source: 'dem', exaggeration: EXAG[exagI] });
+    if (!map.getLayer('hs')) { try { map.addLayer({ id: 'hs', type: 'hillshade', source: 'dem', paint: { 'hillshade-exaggeration': 0.85, 'hillshade-shadow-color': '#2b3a2b', 'hillshade-highlight-color': '#ffffff', 'hillshade-accent-color': '#5b6b5b' } }, map.getLayer('sig-fill') ? 'sig-fill' : undefined); } catch (e) { /* */ } }
     map.easeTo({ pitch: 55, duration: 600 });
     toast(msg + (mdt && mdt.zmin != null ? ' Cotas ' + Math.round(mdt.zmin) + '–' + Math.round(mdt.zmax) + ' m.' : ''), 7000);
     // vigilante: si el terreno no da una cota coherente, primero se reintenta solo con el modelo global y, si sigue mal, se vuelve a 2D
@@ -1693,7 +1694,7 @@ details>*:not(summary){margin-bottom:6px}
       if (intento === 1 && mdt && mdt.src !== 'AWS') {
         mdt.src = 'AWS'; mdt.warn = 'MDT CNIG descartado en 3D (cota ' + (e == null ? 'sin datos' : Math.round(e)) + ')'; demCache.clear();
         try { map.setTerrain(null); if (map.getLayer('hs')) map.removeLayer('hs'); map.removeSource('dem'); } catch (x) { /* */ }
-        try { map.addSource('dem', { type: 'raster-dem', tiles: ['mdt://{z}/{x}/{y}'], encoding: 'terrarium', tileSize: 256, maxzoom: 13 }); map.setTerrain({ source: 'dem', exaggeration: 1 }); } catch (x) { /* */ }
+        try { map.addSource('dem', { type: 'raster-dem', tiles: ['mdt://{z}/{x}/{y}'], encoding: 'terrarium', tileSize: 256, maxzoom: 13 }); map.setTerrain({ source: 'dem', exaggeration: EXAG[exagI] }); } catch (x) { /* */ }
         toast('El relieve del CNIG no se pudo dibujar; reintentando con el modelo global (~30 m)…', 6000);
         check(2); return;
       }
@@ -1703,6 +1704,16 @@ details>*:not(summary){margin-bottom:6px}
     }, intento === 1 ? 9000 : 8000);
     check(1);
   }
+  const EXAG = [1, 1.5, 2, 3];
+  let exagI = Math.max(0, EXAG.indexOf(+store.exag)); if (store.exag == null) exagI = 1;
+  const setExagLabel = () => { const b = $('#btn-exag'); if (b) b.textContent = 'Exagerar relieve ×' + EXAG[exagI]; };
+  $('#btn-exag').onclick = () => {
+    exagI = (exagI + 1) % EXAG.length; store.exag = EXAG[exagI]; setExagLabel();
+    try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) { /* */ }
+    if (mapReady && on3d && map.getTerrain()) map.setTerrain({ source: 'dem', exaggeration: EXAG[exagI] });
+    toast('Relieve exagerado ×' + EXAG[exagI] + (EXAG[exagI] === 1 ? ' (real)' : ' (solo visual; los cálculos usan cotas reales)'), 3000);
+  };
+  setExagLabel();
   $('#btn-3d').onclick = () => {
     if (!mapReady) return;
     on3d = !on3d; tok3d++; $('#btn-3d').classList.toggle('on', on3d);
