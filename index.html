@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v1.6</title>
+<title>PLANTFINC v2.0</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -29,7 +29,7 @@ header{background:#fff;color:var(--text);padding:8px 10px;padding-top:max(8px,en
 .rbtns{position:absolute;right:10px;top:116px;z-index:15;display:grid;gap:10px}
 .rb{width:44px;height:44px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 8px rgba(0,0,0,.3);font-size:1.25rem;cursor:pointer}
 .rb.on{background:var(--pri);color:#fff}
-.menu{position:absolute;right:62px;top:116px;z-index:26;background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px;min-width:150px}
+.menu{max-height:calc(100% - 190px);overflow-y:auto;position:absolute;right:62px;top:116px;z-index:26;background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px;min-width:150px}
 .menu .hbtn{background:#eef1f3;color:var(--text);padding:10px 12px;font-size:.85rem;text-align:left;border-radius:8px}
 .menu .hbtn.on{background:var(--pri);color:#fff}
 .tb{position:absolute;left:0;right:0;bottom:0;z-index:22;background:#fff;border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 8px rgba(0,0,0,.12)}
@@ -113,6 +113,8 @@ details>*:not(summary){margin-bottom:6px}
 .badge{width:26px;height:26px;border-radius:50%;border:2px solid #fff;color:#fff;font-weight:700;font-size:.75rem;box-shadow:0 0 0 1px #888;cursor:pointer}
 .e2{display:grid;gap:5px;margin-top:5px}
 .cota{background:#fff;color:#0d47a1;border:1.5px solid #0d47a1;border-radius:6px;padding:1px 5px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+#stbar,#nbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}#stbar .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}#draft{position:absolute;inset:0;z-index:41;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px}#draft.hidden{display:none}#draft .card{background:#fff;border-radius:12px;padding:12px;display:grid;gap:8px;width:100%;max-height:94%;overflow:auto}#draft textarea{width:100%;padding:6px;border:1px solid #bbb;border-radius:8px}
+#nform,#nview{position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}#nform.hidden,#nview.hidden{display:none}#nform .card,#nview .card{background:#fff;border-radius:12px;padding:12px;display:grid;gap:8px;width:100%;max-width:420px;max-height:90%;overflow:auto}#nform textarea{width:100%;font:inherit;padding:8px;border:1px solid #bbb;border-radius:8px}
 #msbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
 #msbar .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 #ms-info{font-size:.85rem;color:#0d47a1;font-weight:700}
@@ -124,7 +126,7 @@ details>*:not(summary){margin-bottom:6px}
 .stp{display:grid;grid-template-columns:34px 1fr 34px;gap:4px;align-items:center}.stp .mini{margin:0;padding:6px 0;font-size:1rem;font-weight:700}
 #ttbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
 #tt-info{font-size:.85rem;color:#1b5e20;font-weight:700}
-.seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px}.seg2 .btn.on{background:var(--pri);color:#fff}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px}.seg2 .btn.on,.seg3 .btn.on,.seg5 .btn.on{background:var(--pri);color:#fff}.seg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.seg5{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr .6fr;gap:4px}.seg5 .btn{padding:8px 2px;font-size:12px}#ttbar .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}#ttbar .btn.on{background:var(--pri);color:#fff}
 </style>
 </head>
 <body>
@@ -145,10 +147,22 @@ details>*:not(summary){margin-bottom:6px}
   <div class="rbtns">
     <button class="rb" id="btn-loc" aria-label="Centrar en mi posición">&#x25CE;</button>
     <button class="rb" id="btn-lay" aria-label="Capas">&#x1F5C2;</button>
+    <button class="rb" id="btn-undo" aria-label="Deshacer">&#x21B6;</button>
+    <button class="rb" id="btn-redo" aria-label="Rehacer">&#x21B7;</button>
   </div>
   <div class="menu hidden" id="hmenu">
     <button class="hbtn" data-act="report">&#x1F4C4; Informe A4</button>
     <button class="hbtn" data-act="export">&#x1F4E4; Exportar GeoJSON</button>
+    <button class="hbtn" data-act="exp-gpx">&#x1F4E4; Exportar GPX (GPS)</button>
+    <button class="hbtn" data-act="exp-kml">&#x1F4E4; Exportar KML</button>
+    <button class="hbtn" data-act="exp-dxf">&#x1F4E4; Exportar DXF (CAD)</button>
+    <button class="hbtn" data-act="exp-csv">&#x1F4E4; Exportar CSV de árboles</button>
+    <button class="hbtn" data-act="stake">&#x1F6B6; Replanteo con GPS</button>
+    <button class="hbtn" data-act="notes">&#x1F4DD; Notas y fotos</button>
+    <button class="hbtn" data-act="undo">&#x21B6; Deshacer</button>
+    <button class="hbtn" data-act="redo">&#x21B7; Rehacer</button>
+    <button class="hbtn" data-act="offline">&#x1F4F6; Descargar mapa sin conexión</button>
+    <button class="hbtn" data-act="draft">&#x1F4C3; Borrador de comunicación</button>
     <button class="hbtn" data-act="save-center">&#x1F4CD; Fijar centro de inicio</button>
     <button class="hbtn" data-act="del" style="color:var(--danger)">&#x1F5D1; Eliminar finca</button>
   </div>
@@ -168,14 +182,29 @@ details>*:not(summary){margin-bottom:6px}
     </div>
   </div>
   <div id="ttbar" class="hidden">
+    <div class="seg5"><button class="btn sec on" id="tm-sel">Seleccionar</button><button class="btn sec" id="tm-add">&#xFF0B; Añadir</button><button class="btn sec" id="tm-move">Mover</button><button class="btn sec" id="tm-fill">&#x271A; Huecos</button><button class="btn" id="tt-ok">&#x2713;</button></div>
     <div id="tt-info" class="muted"></div>
-    <div class="g2e"><div id="tt-sp-wrap"><label>Árbol a añadir</label><select id="tt-sp"></select></div><button class="btn" id="tt-ok" style="width:auto;align-self:end">Terminar</button></div>
+    <div class="g2e" data-m="sel add"><div><label id="tt-splab">Tipo de árbol</label><select id="tt-sp"></select></div><button class="btn" id="tt-retype" data-m="sel" style="width:auto;align-self:end">Cambiar tipo</button></div>
+    <div class="g3" data-m="sel"><button class="btn danger" id="tt-del">Eliminar</button><button class="btn sec" id="tt-rect">Rectángulo</button><button class="btn sec" id="tt-clr">Limpiar</button></div>
+    <button class="btn sec" id="tt-all" data-m="sel">Seleccionar todos los del mismo tipo</button>
+    <label class="chk" data-m="move"><input type="checkbox" id="tt-adapt" checked> Adaptar la matriz: recalcula con este árbol como nodo</label>
+    <div class="g2" data-m="fill"><button class="btn" id="tt-fillall">Añadir todas</button><button class="btn sec" id="tt-fillcalc">Recalcular huecos</button></div>
   </div>
+  <div id="stbar" class="hidden">
+    <div id="st-info" class="muted"></div>
+    <div class="g3"><button class="btn sec" id="st-prev">&#x25C0;</button><button class="btn" id="st-ok">&#x2713; Plantado</button><button class="btn sec" id="st-next">&#x25B6;</button></div>
+    <div class="g3"><button class="btn danger" id="st-dead">Marra</button><button class="btn sec" id="st-mode">Modo</button><button class="btn" id="st-end">Terminar</button></div>
+  </div>
+  <div id="nbar" class="hidden"><div class="muted">Toca el mapa para añadir una nota (obstáculo, roca, hormiguero…) o toca una nota para verla.</div><div class="g2"><button class="btn sec" id="nb-gps">En mi posición</button><button class="btn" id="nb-ok">Terminar</button></div></div>
+  <div id="nform" class="hidden"><div class="card"><b>Nueva nota</b><textarea id="nf-txt" rows="3" placeholder="Texto de la nota"></textarea><input type="file" id="nf-img" accept="image/*" capture="environment"><div class="g2"><button class="btn sec" id="nf-x">Cancelar</button><button class="btn" id="nf-ok">Guardar</button></div></div></div>
+  <div id="nview" class="hidden"><div class="card"><div id="nv-txt"></div><img id="nv-img" style="max-width:100%;border-radius:8px;margin-top:6px"><div class="g2" style="margin-top:8px"><button class="btn danger" id="nv-del">Borrar</button><button class="btn" id="nv-x">Cerrar</button></div></div></div>
+  <div id="draft" class="hidden"><div class="card" style="max-width:640px"><b>Borrador de comunicación</b><div id="dr-f" class="g2"></div><textarea id="dr-t" rows="14" style="font:12px/1.35 monospace"></textarea><div class="g3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><button class="btn sec" id="dr-cp">Copiar</button><button class="btn" id="dr-dl">Descargar</button><button class="btn sec" id="dr-x">Cerrar</button></div></div></div>
   <div id="msbar" class="hidden">
-    <div class="seg2"><button class="btn sec on" id="ms-pp">&#x2194; Punto a punto</button><button class="btn sec" id="ms-pl">&#x22A5; Punto a lindero</button></div>
+    <div class="seg3"><button class="btn sec on" id="ms-pp">&#x2194; Punto a punto</button><button class="btn sec" id="ms-pl">&#x22A5; A lindero</button><button class="btn sec" id="ms-rf">&#x1F4CD; Coordenadas</button></div>
     <div id="ms-info" class="muted"></div>
-    <div class="g3">
+    <div class="g3" style="grid-template-columns:repeat(4,1fr)">
       <button class="btn sec" id="ms-undo">Borrar última</button>
+      <button class="btn sec" id="ms-prof">Perfil</button>
       <button class="btn sec" id="ms-clear">Borrar todas</button>
       <button class="btn" id="ms-ok">Terminar</button>
     </div>
@@ -258,7 +287,7 @@ details>*:not(summary){margin-bottom:6px}
     const d = { concello: 'abegondo', uso: 'eucalipto', suelo: 'forestal', natura: false, ferrado: null, edges: [], exclusions: [], subzonas: [] };
     Object.keys(d).forEach((k) => { if (f[k] === undefined) f[k] = d[k]; });
     if (f.maxEdges == null) f.maxEdges = 80;
-    f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 1, core: 'nitens', anchor: null, opt: 'auto', dmin: 3, slopeMax: 0 }, f.params || {});
+    f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 1, core: 'nitens', anchor: null, opt: 'auto', dmin: 3, slopeMax: 0, pattern: 'cuad' }, f.params || {});
     f.econ = f.econ || {};
     f.econ.coste = f.econ.coste == null ? null : f.econ.coste;
     f.econ.sp = f.econ.sp || {};
@@ -275,7 +304,7 @@ details>*:not(summary){margin-bottom:6px}
     if (!f.v6) {   // v0.7: por defecto solo eucalipto; las frondosas de lindero las eliges tú
       f.v6 = 1; (f.edges || []).forEach((e) => { e.franja = false; });
     }
-    f.cotas = f.cotas || []; f.manual = f.manual || []; f.removed = f.removed || [];
+    f.cotas = f.cotas || []; f.refs = f.refs || []; f.manual = f.manual || []; f.removed = f.removed || [];
     if (f.ring) PF.ensureEdges(f);
     return f;
   }
@@ -305,7 +334,8 @@ details>*:not(summary){margin-bottom:6px}
     const q25 = (v) => Math.round(v / 0.25) * 0.25; p.sx = Math.max(0.5, q25(num(p.sx, 3.5))); p.sy = Math.max(0.5, q25(num(p.sy, 3.5)));
     p.angle = num(p.angle, 0); p.shU = num(p.shU, 0); p.shV = num(p.shV, 0);
     p.rows = Math.max(0, Math.round(num(p.rows, 3)));
-    if (!S[p.core] || S[p.core].group !== 'euc') p.core = 'nitens';
+    if (!S[p.core]) p.core = 'nitens';
+    if (['cuad', 'tres', 'curvas'].indexOf(p.pattern) < 0) p.pattern = 'cuad';
   }
   const optCache = {};
   function autoOpt() {
@@ -336,17 +366,18 @@ details>*:not(summary){margin-bottom:6px}
       if (a === a && b === b && c2 === c2 && d === d) sl[j * nx + i] = Math.hypot((a - b) / (2 * cs), (c2 - d) / (2 * cs)) * 100;
     }
     const at = (x, y) => { const i = Math.round((x - x0) / cs), j = Math.round((y - y0) / cs); if (i < 0 || j < 0 || i >= nx || j >= ny) return NaN; return sl[j * nx + i]; };
-    slopeGrid = { at: at, key: mdtBox + '|' + nx + 'x' + ny, zmin: 0, zmax: 0 };
+    slopeGrid = { at: at, key: mdtBox + '|' + nx + 'x' + ny, zmin: 0, zmax: 0, zg: { x0: x0, y0: y0, cs: cs, nx: nx, ny: ny, z: z, sl: sl } };
     const sm = +(finca.params.slopeMax || 0);
     if (sm > 0) { prep.slopeMax = sm; prep.slopeFn = (x, y) => { const v = at(x, y); return v === v ? v : 0; }; }
     // estadística dentro de la finca
-    let n = 0, sum = 0, mx = 0, over = 0, zmin = Infinity, zmax = -Infinity;
+    let n = 0, sum = 0, mx = 0, over = 0, zmin = Infinity, zmax = -Infinity, surf = 0, ax = 0, ay = 0;
     for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
       const x = x0 + i * cs, y = y0 + j * cs, v = sl[j * nx + i]; if (v !== v) continue;
       if (!PF.inPoly(x, y, ring)) continue;
-      n++; sum += v; if (v > mx) mx = v; if (sm > 0 && v > sm) over++; const zz = z[j * nx + i]; if (zz < zmin) zmin = zz; if (zz > zmax) zmax = zz;
+      n++; sum += v; surf += cs * cs * Math.sqrt(1 + (v / 100) * (v / 100)); ax += -(z[j * nx + i + 1] - z[j * nx + i - 1]); ay += -(z[(j + 1) * nx + i] - z[(j - 1) * nx + i]); if (v > mx) mx = v; if (sm > 0 && v > sm) over++; const zz = z[j * nx + i]; if (zz < zmin) zmin = zz; if (zz > zmax) zmax = zz;
     }
-    if (n) slopeStat = { mean: sum / n, max: mx, over: sm > 0 ? over / n * 100 : 0, zmin: zmin, zmax: zmax };
+    if (n) slopeStat = { mean: sum / n, max: mx, over: sm > 0 ? over / n * 100 : 0, zmin: zmin, zmax: zmax, surf: surf, flat: n * cs * cs, asp: (Math.atan2(ax, ay) * 180 / Math.PI + 360) % 360, aspOK: Math.hypot(ax, ay) > 0.15 * n * 0.1 };
+    try { refreshSlopeMap(); } catch (e) { /* */ }
   }
   async function ensureMDT() {
     if (mdtBusy || !finca || !finca.ring || typeof fetch !== 'function') return;
@@ -355,6 +386,7 @@ details>*:not(summary){margin-bottom:6px}
     try {
       const g = await Promise.race([fetchMDT(B.bb), new Promise((_, r) => setTimeout(() => r(new Error('tiempo agotado')), 12000))]);
       mdt = g; mdtBox = B.key; demCache.clear();
+      if (g.src === 'AWS') toast('MDT del CNIG no disponible (' + (g.warn || '') + '). Uso el modelo global de elevaciones (~30 m).', 8000);
     } catch (e) { toast('MDT del CNIG no disponible para la pendiente (' + e.message + ')', 6000); }
     mdtBusy = false;
     if (mdt && mdtBox === B.key) { optCache[finca.id] = null; recalc(); try { renderTab(); } catch (e) { /* */ } }
@@ -377,12 +409,14 @@ details>*:not(summary){margin-bottom:6px}
       res = { trees: [], counts: {}, total: 0 };
       if (okp) {
         try { autoOpt(); } catch (e) { fail('optimizar', e); }
-        try { res = PF.generate(prep, finca); applyManual(); } catch (e) { res = { trees: [], counts: {}, total: 0 }; fail('generar', e); }
+        try { res = genTrees(); applyManual(); } catch (e) { res = { trees: [], counts: {}, total: 0 }; fail('generar', e); }
       }
     } else { prep = null; res = { trees: [], counts: {}, total: 0 }; }
     finca.total = res.total;
     try { refreshMap(); } catch (e) { fail('mapa', e); }
     try { refreshDynamic(); } catch (e) { fail('panel', e); }
+    if (tt) { try { ttRefresh(); } catch (e) { /* */ } }
+    histSnap();
     persist();
   }
 
@@ -427,7 +461,7 @@ details>*:not(summary){margin-bottom:6px}
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
     map.on('load', () => {
-      ['verts', 'cotas', 'sig', 'finca', 'edges', 'trees', 'excl', 'zonas', 'draw', 'gps', 'anchor'].forEach((id) => map.addSource(id, { type: 'geojson', data: EMPTY }));
+      ['verts', 'cotas', 'sig', 'finca', 'edges', 'trees', 'sel', 'cands', 'nav', 'excl', 'zonas', 'draw', 'gps', 'anchor'].forEach((id) => map.addSource(id, { type: 'geojson', data: EMPTY }));
       map.addLayer({ id: 'sig-fill', type: 'fill', source: 'sig', paint: { 'fill-color': ['case', ['==', ['get', 'sel'], 1], '#43a047', '#ffb74d'], 'fill-opacity': ['case', ['==', ['get', 'sel'], 1], 0.45, 0.08] } });
       map.addLayer({ id: 'sig-line', type: 'line', source: 'sig', paint: { 'line-color': ['case', ['==', ['get', 'sel'], 1], '#1b5e20', '#ef6c00'], 'line-width': ['case', ['==', ['get', 'sel'], 1], 3, 1.2] } });
       map.addLayer({ id: 'finca-fill', type: 'fill', source: 'finca', paint: { 'fill-color': '#2e7d32', 'fill-opacity': 0.12 } });
@@ -439,7 +473,10 @@ details>*:not(summary){margin-bottom:6px}
       map.addLayer({ id: 'trees', type: 'circle', source: 'trees', paint: {
         'circle-color': ['get', 'color'],
         'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 14, 1, 17, 2.5, 19, 7, 21, 26],
-        'circle-stroke-color': '#ffffff', 'circle-stroke-width': 0.6, 'circle-pitch-alignment': 'map', 'circle-pitch-scale': 'map' } });
+        'circle-stroke-color': ['match', ['get', 'st'], 'p', '#00c853', 'm', '#ff1744', '#ffffff'], 'circle-stroke-width': ['match', ['get', 'st'], 'p', 2.2, 'm', 2.2, 0.6], 'circle-opacity': ['match', ['get', 'st'], 'p', 0.6, 1], 'circle-pitch-alignment': 'map', 'circle-pitch-scale': 'map' } });
+      map.addLayer({ id: 'sel-ring', type: 'circle', source: 'sel', paint: { 'circle-radius': 8, 'circle-color': 'rgba(255,235,59,0.25)', 'circle-stroke-color': '#ffeb3b', 'circle-stroke-width': 3 } });
+      map.addLayer({ id: 'nav-line', type: 'line', source: 'nav', paint: { 'line-color': '#00bfa5', 'line-width': 3, 'line-dasharray': [2, 1] } });
+      map.addLayer({ id: 'cands-x', type: 'line', source: 'cands', paint: { 'line-color': '#d500f9', 'line-width': 3 } });
       map.addLayer({ id: 'anchor', type: 'circle', source: 'anchor', paint: { 'circle-radius': 9, 'circle-color': 'rgba(255,255,255,0.4)', 'circle-stroke-color': '#ff6f00', 'circle-stroke-width': 3 } });
       map.addLayer({ id: 'gps-acc', type: 'fill', source: 'gps', filter: ['==', ['get', 't'], 'acc'], paint: { 'fill-color': '#1976d2', 'fill-opacity': 0.12 } });
       map.addLayer({ id: 'gps-pt', type: 'circle', source: 'gps', filter: ['==', ['get', 't'], 'pt'], paint: { 'circle-radius': 7, 'circle-color': '#1976d2', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } });
@@ -469,7 +506,7 @@ details>*:not(summary){margin-bottom:6px}
 
     if (prep) {
       setSrc('trees', { type: 'FeatureCollection', features: res.trees.map((t) => ({
-        type: 'Feature', properties: { color: S[t.sp].color }, geometry: { type: 'Point', coordinates: prep.pj.toLL(t.x, t.y) } })) });
+        type: 'Feature', properties: { color: S[t.sp].color, st: (finca.status || {})[tkey(t)] || '' }, geometry: { type: 'Point', coordinates: prep.pj.toLL(t.x, t.y) } })) });
     } else setSrc('trees', EMPTY);
 
     const ex = [];
@@ -484,68 +521,493 @@ details>*:not(summary){margin-bottom:6px}
     });
     setSrc('excl', { type: 'FeatureCollection', features: ex });
     setSrc('zonas', { type: 'FeatureCollection', features: (finca.subzonas || []).map((z) => polyFeature(z.coords, { color: S[z.sp].color })) });
-    refreshEdgeNums(); refreshCotas();
+    refreshEdgeNums(); refreshCotas(); refreshNotes();
     setSrc('anchor', finca.params.anchor ? { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: finca.params.anchor } } : EMPTY);
   }
 
   /* ---------- árboles a mano ---------- */
   let tt = null;
+  /* ---------- editor de árboles ---------- */
+  const tkey = (t) => t.x.toFixed(2) + ',' + t.y.toFixed(2);
+  const llOfT = (t) => prep.pj.toLL(t.x, t.y);
+  function freezeLattice() { const p = finca.params; if (p.opt !== 'manual') { p.opt = 'manual'; toast('Matriz fijada para conservar tus cambios (Matriz → Orientación: «Automática» para recalcular)', 5000); } }
+  function nearestManual(ll) { let mi = -1, md = 0.6; finca.manual.forEach((m, i) => { const d = distLL(m.ll, ll); if (d < md) { md = d; mi = i; } }); return mi; }
+  function dropTree(t) { const ll = llOfT(t); if (t.man) { const mi = nearestManual(ll); if (mi >= 0) finca.manual.splice(mi, 1); } else finca.removed.push(ll); }
+  const ttSelTrees = () => res.trees.filter((t) => tt.sel.has(tkey(t)));
   function ttInfo() {
-    $('#tt-info').textContent = tt.mode === 'add' ? 'Toca el mapa para AÑADIR un árbol (' + finca.manual.length + ' añadidos).' : 'Toca un árbol para QUITARLO (' + finca.removed.length + ' quitados de la matriz).';
-    $('#tt-sp-wrap').classList.toggle('hidden', tt.mode !== 'add');
+    const m = tt.mode, el = $('#tt-info');
+    if (m === 'sel') el.textContent = tt.rect ? (tt.rp ? 'Toca la esquina opuesta del rectángulo.' : 'Rectángulo: toca la primera esquina.') : 'Toca árboles para seleccionarlos (' + tt.sel.size + ' seleccionados). Luego: cambiar tipo o eliminar.';
+    else if (m === 'add') el.textContent = 'Toca el mapa para AÑADIR un árbol (' + finca.manual.length + ' manuales).';
+    else if (m === 'move') el.textContent = tt.mv ? 'Toca el punto de destino del árbol.' : 'Toca el árbol que quieres MOVER.';
+    else el.textContent = tt.cands.length ? tt.cands.length + ' huecos con cabida (cruces ✚): toca una cruz para añadir un árbol, o «Añadir todas».' : 'No hay huecos con distancia mínima ' + fmtM(num(finca.params.dmin, 3)) + ' (cámbiala en Matriz).';
+    ['sel', 'add', 'move', 'fill'].forEach((x) => $('#tm-' + x).classList.toggle('on', x === m));
+    document.querySelectorAll('#ttbar [data-m]').forEach((el2) => el2.classList.toggle('hidden', el2.dataset.m.split(' ').indexOf(m) < 0));
+    $('#tt-rect').classList.toggle('on', !!tt.rect);
+    $('#tt-splab').textContent = m === 'add' ? 'Árbol a añadir' : 'Cambiar los seleccionados a';
+  }
+  function ttRefresh() {
+    if (!mapReady || !tt || !prep) { if (mapReady) { setSrc('sel', EMPTY); setSrc('cands', EMPTY); } return; }
+    const pj = prep.pj, sel = [], cr = [];
+    res.trees.forEach((t) => { if (tt.sel.has(tkey(t))) sel.push({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: pj.toLL(t.x, t.y) } }); });
+    if (tt.rp) sel.push({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: tt.rp } });
+    tt.cands.forEach((c) => {
+      const L1 = 0.8;
+      cr.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [pj.toLL(c.x - L1, c.y), pj.toLL(c.x + L1, c.y)] } });
+      cr.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [pj.toLL(c.x, c.y - L1), pj.toLL(c.x, c.y + L1)] } });
+    });
+    setSrc('sel', { type: 'FeatureCollection', features: sel }); setSrc('cands', { type: 'FeatureCollection', features: cr });
+  }
+  function ttFillCalc() {
+    const dmin = Math.max(0.5, num(finca.params.dmin, 3)), pj = prep.pj;
+    const occ = res.trees.map((t) => [t.x, t.y]).concat((finca.removed || []).map((r) => pj.toXY(r[0], r[1])));
+    try { tt.cands = PF.fillCandidates(prep, finca, occ, dmin); } catch (e) { tt.cands = []; fail('huecos', e); }
+    ttInfo(); ttRefresh();
+  }
+  function ttMode(m) {
+    tt.mode = m; tt.mv = null; tt.rp = null; tt.rect = false;
+    $('#tt-sp').innerHTML = (m === 'add' || m === 'sel' ? [['core', 'Árbol de la plantación (' + S[finca.params.core].name + ')']] : []).concat(Object.keys(S).map((k) => [k, S[k].name])).map((x) => '<option value="' + x[0] + '">' + esc(x[1]) + '</option>').join('');
+    if (m === 'fill') { toast('Buscando huecos…', 3000); setTimeout(() => { if (tt && tt.mode === 'fill') ttFillCalc(); }, 30); } else tt.cands = [];
+    ttInfo(); ttRefresh();
   }
   function startTrees(mode) {
     if (!mapReady || onList || !prep) { toast('Primero elige la parcela en el mapa SIGPAC'); return; }
-    closeSheet(); endSigpac(); if (ms) endMeasure(); if (tr) endTramo(); if (draw) endDraw();
-    tt = { mode: mode };
-    $('#tt-sp').innerHTML = ARB().map((x) => '<option value="' + x[0] + '">' + esc(x[1]) + '</option>').join('');
-    $('#ttbar').classList.remove('hidden'); ttInfo();
+    closeSheet(); endSigpac(); if (ms) endMeasure(); if (tr) endTramo(); if (draw) endDraw(); if (st) endStake(); if (nt) endNotes();
+    tt = { mode: mode, sel: new Set(), cands: [], rect: false, rp: null, mv: null };
+    $('#ttbar').classList.remove('hidden'); ttMode(mode);
   }
-  function endTrees() { if (!tt) return; tt = null; $('#ttbar').classList.add('hidden'); renderTab(); }
+  function endTrees() { if (!tt) return; tt = null; $('#ttbar').classList.add('hidden'); if (mapReady) { setSrc('sel', EMPTY); setSrc('cands', EMPTY); } renderTab(); }
+  function pickTree(e, maxpx) {
+    let best = null, bd = maxpx || 18; const pj = prep.pj;
+    res.trees.forEach((t) => {
+      const ll = pj.toLL(t.x, t.y); let d;
+      if (typeof map.project === 'function') { const p = map.project(ll); d = Math.hypot(p.x - e.point.x, p.y - e.point.y); } else d = Math.hypot(ll[0] - e.lngLat.lng, ll[1] - e.lngLat.lat) * 1e5;
+      if (d < bd) { bd = d; best = t; }
+    });
+    return best;
+  }
   function ttTap(e) {
-    const pj = prep.pj;
-    if (tt.mode === 'add') {
-      const v = $('#tt-sp').value, sp = v === 'euc' ? finca.params.core : v, ll = [e.lngLat.lng, e.lngLat.lat], q = pj.toXY(ll[0], ll[1]);
+    const pj = prep.pj, m = tt.mode;
+    if (m === 'add') {
+      const v = $('#tt-sp').value, sp = v === 'core' ? finca.params.core : v, ll = [e.lngLat.lng, e.lngLat.lat], q = pj.toXY(ll[0], ll[1]);
       let md = Infinity; res.trees.forEach((t) => { md = Math.min(md, Math.hypot(t.x - q[0], t.y - q[1])); });
       const legal = PF.makeEval(prep, finca)(q[0], q[1]);
-      finca.manual.push({ ll: ll, sp: sp }); recalc(); ttInfo();
+      freezeLattice(); finca.manual.push({ ll: ll, sp: sp }); recalc(); ttInfo();
       const dmin = num(finca.params.dmin, 3);
       toast((md < dmin ? '⚠ a ' + fmtM(md) + ' del árbol más cercano. ' : '') + (legal ? '' : '⚠ dentro de la distancia legal al lindero. ') + 'Árbol añadido.', 3500);
       return;
     }
-    let best = -1, bd = 18;
-    res.trees.forEach((t, i) => {
-      const ll = pj.toLL(t.x, t.y); let d;
-      if (typeof map.project === 'function') { const p = map.project(ll); d = Math.hypot(p.x - e.point.x, p.y - e.point.y); } else d = Math.hypot(ll[0] - e.lngLat.lng, ll[1] - e.lngLat.lat) * 1e5;
-      if (d < bd) { bd = d; best = i; }
-    });
-    if (best < 0) return;
-    const t = res.trees[best], ll = pj.toLL(t.x, t.y);
-    if (t.man) { let mi = -1, md = Infinity; finca.manual.forEach((m, i) => { const d = Math.hypot(m.ll[0] - ll[0], m.ll[1] - ll[1]); if (d < md) { md = d; mi = i; } }); if (mi >= 0) finca.manual.splice(mi, 1); }
-    else finca.removed.push(ll);
-    recalc(); ttInfo();
-  }
-  // Rellena huecos con árboles respetando distancias legales y la distancia mínima entre árboles
-  function fillGaps() {
-    if (!prep) { toast('Primero elige la parcela'); return; }
-    const dmin = Math.max(0.5, num(finca.params.dmin, 3)), ev = PF.makeEval(prep, finca), pj = prep.pj;
-    const cell = dmin, H = new Map(), key = (x, y) => Math.floor(x / cell) + ',' + Math.floor(y / cell);
-    const near = (x, y) => { let md = Infinity; const cx = Math.floor(x / cell), cy = Math.floor(y / cell); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = H.get((cx + i) + ',' + (cy + j)); if (a) for (let k = 0; k < a.length; k++) md = Math.min(md, Math.hypot(a[k][0] - x, a[k][1] - y)); } return md; };
-    const put = (x, y) => { const k = key(x, y); if (!H.has(k)) H.set(k, []); H.get(k).push([x, y]); };
-    res.trees.forEach((t) => put(t.x, t.y));
-    (finca.removed || []).forEach((r) => { const q = pj.toXY(r[0], r[1]); put(q[0], q[1]); });
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    prep.ring.forEach((p) => { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
-    const cand = [], st = 0.25;
-    for (let x = x0; x <= x1; x += st) for (let y = y0; y <= y1; y += st) { const d = near(x, y); if (d >= dmin) cand.push([x, y, d]); }
-    cand.sort((a, b) => b[2] - a[2]);
-    let n = 0;
-    for (let i = 0; i < cand.length; i++) {
-      const c = cand[i]; if (near(c[0], c[1]) < dmin) continue;
-      const sp = ev(c[0], c[1]); if (!sp) continue;
-      put(c[0], c[1]); finca.manual.push({ ll: pj.toLL(c[0], c[1]), sp: sp, fill: 1 }); n++;
+    if (m === 'fill') {
+      let bi = -1, bd = 22;
+      tt.cands.forEach((c, i) => { const ll = pj.toLL(c.x, c.y); let d; if (typeof map.project === 'function') { const p = map.project(ll); d = Math.hypot(p.x - e.point.x, p.y - e.point.y); } else d = Math.hypot(ll[0] - e.lngLat.lng, ll[1] - e.lngLat.lat) * 1e5; if (d < bd) { bd = d; bi = i; } });
+      if (bi < 0) return;
+      const c = tt.cands.splice(bi, 1)[0]; freezeLattice(); finca.manual.push({ ll: pj.toLL(c.x, c.y), sp: c.sp, fill: 1 }); recalc(); ttInfo(); ttRefresh(); return;
     }
-    recalc(); renderTab(); toast(n ? n + ' árboles añadidos en huecos (mín. ' + fmtM(dmin) + ' entre árboles)' : 'No hay huecos con esa distancia mínima', 4500);
+    if (m === 'move') {
+      if (!tt.mv) { const t = pickTree(e); if (!t) return; tt.mv = t; tt.sel = new Set([tkey(t)]); ttInfo(); ttRefresh(); return; }
+      doMove(tt.mv, [e.lngLat.lng, e.lngLat.lat]); return;
+    }
+    if (tt.rect) {
+      const p = [e.lngLat.lng, e.lngLat.lat];
+      if (!tt.rp) { tt.rp = p; ttInfo(); ttRefresh(); return; }
+      const a = tt.rp, x0 = Math.min(a[0], p[0]), x1 = Math.max(a[0], p[0]), y0 = Math.min(a[1], p[1]), y1 = Math.max(a[1], p[1]);
+      res.trees.forEach((t) => { const ll = pj.toLL(t.x, t.y); if (ll[0] >= x0 && ll[0] <= x1 && ll[1] >= y0 && ll[1] <= y1) tt.sel.add(tkey(t)); });
+      tt.rp = null; ttInfo(); ttRefresh(); return;
+    }
+    const t = pickTree(e); if (!t) return;
+    const k = tkey(t); if (tt.sel.has(k)) tt.sel.delete(k); else tt.sel.add(k);
+    ttInfo(); ttRefresh();
+  }
+  function doMove(t, dest) {
+    const pj = prep.pj, q = pj.toXY(dest[0], dest[1]), sp = t.sp, adapt = $('#tt-adapt').checked;
+    dropTree(t); finca.manual.push({ ll: dest, sp: sp });
+    const legal = PF.makeEval(prep, finca)(q[0], q[1]);
+    let msg = 'Árbol movido.';
+    if (adapt) {
+      try {
+        const p = finca.params, b = PF.optimizeThrough(prep, finca, q, { fixedAngle: p.opt === 'fijo' ? num(p.angle, 0) : null });
+        p.angle = b.angle; p.shU = b.shU; p.shV = b.shV; p.opt = 'manual';
+      } catch (er) { fail('adaptar matriz', er); }
+      recalc();
+      if (res.trees.some((x) => !x.man && Math.hypot(x.x - q[0], x.y - q[1]) < 0.3)) { const mi = nearestManual(dest); if (mi >= 0) { finca.manual.splice(mi, 1); recalc(); } }
+      msg = 'Matriz recalculada con el árbol en el nuevo punto: ' + res.total + ' árboles, ángulo ' + (+finca.params.angle).toFixed(1) + '°.';
+    } else { freezeLattice(); recalc(); }
+    tt.mv = null; tt.sel.clear(); ttInfo(); ttRefresh();
+    toast((legal ? '' : '⚠ Punto dentro de la distancia legal al lindero. ') + msg, 5000);
+  }
+  function ttRetype() {
+    const list = ttSelTrees(); if (!list.length) { toast('Selecciona primero uno o varios árboles'); return; }
+    const v = $('#tt-sp').value, sp = v === 'core' ? finca.params.core : v;
+    list.forEach((t) => { const ll = llOfT(t); if (t.man) { const mi = nearestManual(ll); if (mi >= 0) finca.manual[mi].sp = sp; } else { finca.removed.push(ll); finca.manual.push({ ll: ll, sp: sp }); } });
+    freezeLattice(); tt.sel.clear(); recalc(); ttInfo(); ttRefresh(); toast(list.length + ' árbol(es) cambiados a ' + S[sp].name, 3500);
+  }
+  function ttDelete() {
+    const list = ttSelTrees(); if (!list.length) { toast('Selecciona primero uno o varios árboles'); return; }
+    list.forEach(dropTree); freezeLattice(); tt.sel.clear(); recalc(); ttInfo(); ttRefresh(); toast(list.length + ' árbol(es) eliminados', 3000);
+  }
+  $('#tm-sel').onclick = () => tt && ttMode('sel'); $('#tm-add').onclick = () => tt && ttMode('add'); $('#tm-move').onclick = () => tt && ttMode('move'); $('#tm-fill').onclick = () => tt && ttMode('fill');
+  $('#tt-retype').onclick = () => tt && ttRetype(); $('#tt-del').onclick = () => tt && ttDelete();
+  $('#tt-rect').onclick = () => { if (!tt) return; tt.rect = !tt.rect; tt.rp = null; ttInfo(); ttRefresh(); };
+  $('#tt-clr').onclick = () => { if (!tt) return; tt.sel.clear(); tt.rp = null; ttInfo(); ttRefresh(); };
+  $('#tt-all').onclick = () => { if (!tt) return; const l = ttSelTrees(); if (!l.length) { toast('Selecciona antes un árbol del tipo deseado'); return; } const sps = new Set(l.map((t) => t.sp)); res.trees.forEach((t) => { if (sps.has(t.sp)) tt.sel.add(tkey(t)); }); ttInfo(); ttRefresh(); };
+  $('#tt-fillcalc').onclick = () => { if (tt) { toast('Buscando huecos…', 2500); setTimeout(ttFillCalc, 30); } };
+  $('#tt-fillall').onclick = () => {
+    if (!tt || !tt.cands.length) { toast('No hay huecos'); return; }
+    const pj = prep.pj, n = tt.cands.length; freezeLattice();
+    tt.cands.forEach((c) => finca.manual.push({ ll: pj.toLL(c.x, c.y), sp: c.sp, fill: 1 })); tt.cands = []; recalc(); ttInfo(); ttRefresh(); toast(n + ' árboles añadidos en huecos (mín. ' + fmtM(num(finca.params.dmin, 3)) + ' entre árboles)', 4500);
+  };
+  /* ---------- tabla de árboles y exportaciones ---------- */
+  function treeTable() {
+    const p = finca.params, pj = prep.pj;
+    const on = res.trees.filter((t) => !t.man && t.i !== undefined);
+    const rk = (key) => { const s = Array.from(new Set(on.map((t) => t[key]))).sort((a, b) => a - b), m = {}; s.forEach((v, k) => { m[v] = k + 1; }); return m; };
+    const noCols = p.pattern === 'tres' || p.pattern === 'curvas', rows = rk('j'), cols = noCols ? {} : rk('i');
+    let mn = 0;
+    return res.trees.map((t, k) => {
+      const ll = pj.toLL(t.x, t.y), u = utm29(ll[0], ll[1]), isOn = !t.man && t.i !== undefined;
+      let name;
+      if (isOn) { name = 'F' + rows[t.j] + (noCols ? 'N' + (t.i - 0) : 'C' + cols[t.i]); if (noCols) { const rr = on.filter((q) => q.j === t.j).sort((a, b) => a.i - b.i); name = 'F' + rows[t.j] + 'N' + (rr.findIndex((q) => q === t) + 1); } }
+      else { mn++; name = 'M' + mn; }
+      return { k: k, t: t, name: name, sp: t.sp, ll: ll, x: u[0], y: u[1], fila: isOn ? rows[t.j] : null, col: isOn && !noCols ? cols[t.i] : null, man: !!t.man, st: (finca.status || {})[tkey(t)] || '' };
+    });
+  }
+  const xmlEsc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function exportGPX() {
+    if (!prep) { toast('No hay datos'); return; }
+    const T = treeTable(); let o = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="PLANTFINC" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>' + xmlEsc(finca.name) + '</name></metadata>\n';
+    finca.ring.forEach((v, i) => { o += '<wpt lat="' + v[1].toFixed(7) + '" lon="' + v[0].toFixed(7) + '"><name>V' + (i + 1) + '</name><desc>Vértice de la finca</desc><sym>Flag, Red</sym></wpt>\n'; });
+    (finca.refs || []).forEach((r, i) => { o += '<wpt lat="' + r.ll[1].toFixed(7) + '" lon="' + r.ll[0].toFixed(7) + '"><name>R' + (i + 1) + '</name><desc>Punto de referencia</desc><sym>Flag, Blue</sym></wpt>\n'; });
+    (finca.notes || []).forEach((n, i) => { o += '<wpt lat="' + n.ll[1].toFixed(7) + '" lon="' + n.ll[0].toFixed(7) + '"><name>Nota ' + (i + 1) + '</name><desc>' + xmlEsc(n.txt) + '</desc><sym>Danger Area</sym></wpt>\n'; });
+    T.forEach((r) => { o += '<wpt lat="' + r.ll[1].toFixed(7) + '" lon="' + r.ll[0].toFixed(7) + '"><name>' + r.name + '</name><desc>' + xmlEsc(S[r.sp].name) + '</desc><sym>Flag, Green</sym></wpt>\n'; });
+    o += '<trk><name>Contorno ' + xmlEsc(finca.name) + '</name><trkseg>' + finca.ring.concat([finca.ring[0]]).map((v) => '<trkpt lat="' + v[1].toFixed(7) + '" lon="' + v[0].toFixed(7) + '"/>').join('') + '</trkseg></trk>\n</gpx>\n';
+    download('plantfinc-' + slug(finca.name) + '.gpx', o, 'application/gpx+xml'); toast('GPX con ' + T.length + ' puntos (F=fila, C=columna)', 4000);
+  }
+  function exportKML() {
+    if (!prep) { toast('No hay datos'); return; }
+    const T = treeTable(), kc = (hex) => 'ff' + hex.slice(5, 7) + hex.slice(3, 5) + hex.slice(1, 3);
+    let o = '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>' + xmlEsc(finca.name) + '</name>\n';
+    Object.keys(S).forEach((k) => { o += '<Style id="s' + k + '"><IconStyle><color>' + kc(S[k].color) + '</color><scale>0.5</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href></Icon></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>\n'; });
+    o += '<Style id="fz"><LineStyle><color>ff00a5ff</color><width>3</width></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>\n';
+    o += '<Placemark><name>' + xmlEsc(finca.name) + '</name><styleUrl>#fz</styleUrl><Polygon><outerBoundaryIs><LinearRing><coordinates>' + finca.ring.concat([finca.ring[0]]).map((v) => v[0] + ',' + v[1] + ',0').join(' ') + '</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>\n';
+    (finca.refs || []).forEach((r, i) => { o += '<Placemark><name>R' + (i + 1) + '</name><Point><coordinates>' + r.ll[0] + ',' + r.ll[1] + ',0</coordinates></Point></Placemark>\n'; });
+    (finca.notes || []).forEach((n, i) => { o += '<Placemark><name>Nota ' + (i + 1) + '</name><description>' + xmlEsc(n.txt) + '</description><Point><coordinates>' + n.ll[0] + ',' + n.ll[1] + ',0</coordinates></Point></Placemark>\n'; });
+    o += '<Folder><name>Árboles (' + T.length + ')</name>\n';
+    T.forEach((r) => { o += '<Placemark><name>' + r.name + '</name><description>' + xmlEsc(S[r.sp].name) + ' · UTM29 ' + r.x.toFixed(2) + ', ' + r.y.toFixed(2) + '</description><styleUrl>#s' + r.sp + '</styleUrl><Point><coordinates>' + r.ll[0].toFixed(7) + ',' + r.ll[1].toFixed(7) + ',0</coordinates></Point></Placemark>\n'; });
+    o += '</Folder></Document></kml>\n';
+    download('plantfinc-' + slug(finca.name) + '.kml', o, 'application/vnd.google-earth.kml+xml'); toast('KML exportado', 3000);
+  }
+  function exportCSV() {
+    if (!prep) { toast('No hay datos'); return; }
+    const T = treeTable(), n2 = (v) => v.toFixed(2).replace('.', ','), n7 = (v) => v.toFixed(7).replace('.', ',');
+    let o = '﻿nombre;especie;fila;columna;x_utm29;y_utm29;lat;lon;origen;estado\n';
+    T.forEach((r) => { o += [r.name, S[r.sp].name, r.fila == null ? '' : r.fila, r.col == null ? '' : r.col, n2(r.x), n2(r.y), n7(r.ll[1]), n7(r.ll[0]), r.man ? 'manual' : 'matriz', r.st === 'p' ? 'plantado' : r.st === 'm' ? 'marra' : 'pendiente'].join(';') + '\n'; });
+    download('plantfinc-' + slug(finca.name) + '-arboles.csv', o, 'text/csv;charset=utf-8'); toast('CSV con ' + T.length + ' árboles', 3000);
+  }
+  function exportDXF() {
+    if (!prep) { toast('No hay datos'); return; }
+    const T = treeTable(), pj = prep.pj, U = (ll) => utm29(ll[0], ll[1]);
+    const lay = ['FINCA', 'LINDEROS', 'EXCLUSIONES', 'REFERENCIAS'].concat(Object.keys(S).filter((k) => res.counts[k]).map((k) => 'ARBOL_' + k.toUpperCase()));
+    const col = { FINCA: 3, LINDEROS: 1, EXCLUSIONES: 1, REFERENCIAS: 5 }; Object.keys(S).forEach((k, i) => { col['ARBOL_' + k.toUpperCase()] = [5, 6, 30, 32, 2, 4, 1, 3][i % 8]; });
+    let o = '0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n' + lay.length + '\n';
+    lay.forEach((l) => { o += '0\nLAYER\n2\n' + l + '\n70\n0\n62\n' + (col[l] || 7) + '\n6\nCONTINUOUS\n'; });
+    o += '0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
+    const poly = (layer, pts, closed) => { let s = '0\nPOLYLINE\n8\n' + layer + '\n66\n1\n70\n' + (closed ? 1 : 0) + '\n'; pts.forEach((q) => { s += '0\nVERTEX\n8\n' + layer + '\n10\n' + q[0].toFixed(3) + '\n20\n' + q[1].toFixed(3) + '\n30\n0\n'; }); return s + '0\nSEQEND\n8\n' + layer + '\n'; };
+    o += poly('FINCA', finca.ring.map(U), true);
+    runs().forEach((r) => { const cs = r.edges.map((i) => finca.ring[i]); cs.push(finca.ring[(r.edges[r.edges.length - 1] + 1) % finca.ring.length]); o += poly('LINDEROS', cs.map(U), false); });
+    (finca.exclusions || []).forEach((e) => { o += poly('EXCLUSIONES', e.coords.map(U), e.kind === 'poly'); });
+    (finca.refs || []).forEach((r, i) => { const u = U(r.ll); o += '0\nPOINT\n8\nREFERENCIAS\n10\n' + u[0].toFixed(3) + '\n20\n' + u[1].toFixed(3) + '\n30\n0\n0\nTEXT\n8\nREFERENCIAS\n10\n' + (u[0] + 1).toFixed(3) + '\n20\n' + u[1].toFixed(3) + '\n30\n0\n40\n1.5\n1\nR' + (i + 1) + '\n'; });
+    T.forEach((r) => { o += '0\nCIRCLE\n8\nARBOL_' + r.sp.toUpperCase() + '\n10\n' + r.x.toFixed(3) + '\n20\n' + r.y.toFixed(3) + '\n30\n0\n40\n0.3\n'; });
+    o += '0\nENDSEC\n0\nEOF\n';
+    download('plantfinc-' + slug(finca.name) + '.dxf', o, 'application/dxf'); toast('DXF en coordenadas UTM 29N (ETRS89)', 4000);
+  }
+  /* ---------- replanteo con GPS ---------- */
+  let st = null;
+  function stKey(t) { return tkey(t); }
+  function stOrder() {
+    const T = treeTable().slice().sort((a, b) => ((a.fila || 1e6) - (b.fila || 1e6)) || (((a.fila || 0) % 2 ? 1 : -1) * ((a.col || a.t.i || 0) - (b.col || b.t.i || 0))));
+    return T;
+  }
+  function stStats() { let p = 0, m = 0; res.trees.forEach((t) => { const s = (finca.status || {})[stKey(t)]; if (s === 'p') p++; else if (s === 'm') m++; }); return { p: p, m: m, n: res.trees.length }; }
+  const ARROWS = ['⬆', '↗', '➡', '↘', '⬇', '↙', '⬅', '↖'];
+  function stUpdate() {
+    if (!st || !prep) return;
+    const s = stStats(); let txt = 'Plantados ' + s.p + '/' + s.n + ' · marras ' + s.m + '. ';
+    const T = st.T; let tgt = null;
+    if (st.mode === 'near' && lastFix) {
+      const q = prep.pj.toXY(lastFix[0], lastFix[1]); let bd = Infinity;
+      T.forEach((r) => { if (r.st === 'p' || (finca.status || {})[stKey(r.t)] === 'p') return; const d = Math.hypot(r.t.x - q[0], r.t.y - q[1]); if (d < bd) { bd = d; tgt = r; } });
+    } else if (st.mode === 'seq') { tgt = T.find((r) => (finca.status || {})[stKey(r.t)] !== 'p' && (finca.status || {})[stKey(r.t)] !== 'm') || null; if (st.pin) tgt = st.pin; }
+    st.target = tgt; $('#st-mode').textContent = st.mode === 'near' ? 'Modo: más cercano' : 'Modo: en orden';
+    if (!tgt) { setSrc('nav', EMPTY); $('#st-info').textContent = txt + (s.p + s.m >= s.n ? '¡Todos los árboles marcados!' : (lastFix ? '' : 'Activa el GPS (menú capas) o toca árboles para marcarlos.')); return; }
+    let nav = '';
+    if (lastFix) {
+      const q = prep.pj.toXY(lastFix[0], lastFix[1]), dx = tgt.t.x - q[0], dy = tgt.t.y - q[1], d = Math.hypot(dx, dy), br = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+      nav = ' → ' + tgt.name + ' (' + S[tgt.sp].name + '): ' + ARROWS[Math.round(br / 45) % 8] + ' ' + fmtM(d) + ' · rumbo ' + Math.round(br) + '°' + (d < 1 ? ' · ¡AQUÍ! pulsa ✓' : '') + (lastFix[2] > 8 ? ' · GPS ±' + Math.round(lastFix[2]) + ' m' : '');
+      setSrc('nav', { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[lastFix[0], lastFix[1]], tgt.ll] } });
+    } else { nav = ' → ' + tgt.name + ' (' + S[tgt.sp].name + '). Sin GPS: toca árboles para marcarlos.'; setSrc('nav', EMPTY); }
+    $('#st-info').textContent = txt + nav.trim();
+  }
+  function startStake() {
+    if (!mapReady || onList || !prep) { toast('Primero elige la parcela'); return; }
+    closeSheet(); endSigpac(); if (ms) endMeasure(); if (tr) endTramo(); if (draw) endDraw(); if (tt) endTrees(); if (nt) endNotes(); $('#hmenu').classList.add('hidden');
+    freezeLattice(); finca.status = finca.status || {};
+    if (gpsWatch === null) startGPS();
+    st = { mode: lastFix ? 'near' : 'seq', T: treeTable(), target: null, pin: null }; $('#stbar').classList.remove('hidden'); refreshMap(); stUpdate();
+  }
+  function endStake() { if (!st) return; st = null; $('#stbar').classList.add('hidden'); setSrc('nav', EMPTY); persist(); renderTab(); }
+  function stSet(t, v) { finca.status = finca.status || {}; if (v) finca.status[stKey(t)] = v; else delete finca.status[stKey(t)]; refreshMap(); persist(); }
+  function stTap(e) {
+    const t = pickTree(e, 22); if (!t) return;
+    const k = stKey(t), cur = (finca.status || {})[k] || '', nx = cur === '' ? 'p' : cur === 'p' ? 'm' : '';
+    stSet(t, nx); st.T = treeTable(); stUpdate(); toast(nx === 'p' ? 'Plantado' : nx === 'm' ? 'Marra' : 'Pendiente', 1200);
+  }
+  $('#st-ok').onclick = () => { if (st && st.target) { stSet(st.target.t, 'p'); st.T = treeTable(); st.pin = null; stUpdate(); } };
+  $('#st-dead').onclick = () => { if (st && st.target) { stSet(st.target.t, 'm'); st.T = treeTable(); st.pin = null; stUpdate(); } };
+  $('#st-next').onclick = () => { if (!st) return; const i = st.T.findIndex((r) => st.target && r.name === st.target.name); st.mode = 'seq'; st.pin = st.T[(i + 1) % st.T.length]; stUpdate(); };
+  $('#st-prev').onclick = () => { if (!st) return; const i = st.T.findIndex((r) => st.target && r.name === st.target.name); st.mode = 'seq'; st.pin = st.T[(i - 1 + st.T.length) % st.T.length]; stUpdate(); };
+  $('#st-mode').onclick = () => { if (!st) return; st.mode = st.mode === 'near' ? 'seq' : 'near'; st.pin = null; stUpdate(); };
+  $('#st-end').onclick = endStake;
+  /* ---------- notas con foto ---------- */
+  let nt = null, nMarks = [], nPending = null;
+  function refreshNotes() {
+    nMarks.forEach((m) => m.remove()); nMarks = [];
+    if (!mapReady || typeof maplibregl.Marker !== 'function' || !finca) return;
+    (finca.notes || []).forEach((n, i) => {
+      const el = document.createElement('div'); el.className = 'cota'; el.style.cssText = 'cursor:pointer;pointer-events:auto;background:#fffde7;border-color:#f9a825;color:#000'; el.textContent = '\u{1F4DD}' + (n.photo ? '\u{1F4F7}' : '') + ' ' + (i + 1);
+      el.onclick = (ev) => { ev.stopPropagation(); viewNote(i); };
+      nMarks.push(new maplibregl.Marker({ element: el }).setLngLat(n.ll).addTo(map));
+    });
+  }
+  function viewNote(i) {
+    const n = finca.notes[i]; if (!n) return; $('#nv-del').style.display = '';
+    $('#nv-txt').textContent = 'Nota ' + (i + 1) + ': ' + (n.txt || '(sin texto)') + '  [' + n.ll[1].toFixed(6) + ', ' + n.ll[0].toFixed(6) + ']';
+    $('#nv-img').src = n.photo || ''; $('#nv-img').style.display = n.photo ? 'block' : 'none'; $('#nview').dataset.i = i; $('#nview').classList.remove('hidden');
+  }
+  $('#nv-x').onclick = () => $('#nview').classList.add('hidden');
+  $('#nv-del').onclick = () => { const i = +$('#nview').dataset.i; if (i < 0) return; finca.notes.splice(i, 1); $('#nview').classList.add('hidden'); persist(); refreshNotes(); toast('Nota borrada', 1500); };
+  function startNotes() {
+    if (!mapReady || onList) return; closeSheet(); endSigpac(); if (ms) endMeasure(); if (tr) endTramo(); if (draw) endDraw(); if (tt) endTrees(); if (st) endStake(); $('#hmenu').classList.add('hidden');
+    nt = {}; finca.notes = finca.notes || []; $('#nbar').classList.remove('hidden'); refreshNotes();
+  }
+  function endNotes() { nt = null; $('#nbar').classList.add('hidden'); }
+  function ntTap(e) { openNoteForm([e.lngLat.lng, e.lngLat.lat]); }
+  function openNoteForm(ll) { nPending = ll; $('#nf-txt').value = ''; $('#nf-img').value = ''; $('#nform').classList.remove('hidden'); }
+  $('#nb-gps').onclick = () => { if (lastFix) openNoteForm([lastFix[0], lastFix[1]]); else toast('Sin posición GPS todavía'); };
+  $('#nb-ok').onclick = endNotes;
+  $('#nf-x').onclick = () => { $('#nform').classList.add('hidden'); nPending = null; };
+  $('#nf-ok').onclick = () => {
+    if (!nPending) return;
+    if ((finca.notes || []).length >= 40) { toast('Máximo 40 notas por finca'); return; }
+    const f = $('#nf-img').files && $('#nf-img').files[0], ll = nPending, txt = $('#nf-txt').value.trim();
+    const save = (photo) => { finca.notes.push({ ll: ll, txt: txt, photo: photo || null, t: Date.now() }); $('#nform').classList.add('hidden'); nPending = null; persist(); refreshNotes(); toast('Nota guardada', 1500); };
+    if (!f) { save(null); return; }
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => { const k = Math.min(1, 640 / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); save(cv.toDataURL('image/jpeg', 0.6)); };
+    img.onerror = () => { URL.revokeObjectURL(url); save(null); };
+    img.src = url;
+  };
+  /* ---------- v2.0: relieve (mapa de pendientes, perfil), curvas de nivel ---------- */
+  function aspectName(az) { return ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'][Math.round(az / 45) % 8]; }
+  function genTrees() {
+    const p = finca.params;
+    if (p.pattern === 'curvas' && slopeGrid && slopeGrid.zg && slopeStat) {
+      const dz = Math.max(0.25, num(p.sy, 3.5) * Math.max(0.03, slopeStat.mean / 100));
+      const r = PF.contourTrees(prep, finca, slopeGrid.zg, dz);
+      if (r.total) return r;
+    }
+    return PF.generate(prep, finca);
+  }
+  let slopeOn = false;
+  function refreshSlopeMap() {
+    if (!mapReady) return;
+    try { if (map.getLayer('slopeimg')) map.removeLayer('slopeimg'); if (map.getSource('slopeimg')) map.removeSource('slopeimg'); } catch (e) { /* */ }
+    if (!slopeOn || !slopeGrid || !slopeGrid.zg || !prep) return;
+    const g = slopeGrid.zg, sl = g.sl, cv = document.createElement('canvas'); cv.width = g.nx; cv.height = g.ny;
+    const cx = cv.getContext('2d'), im = cx.createImageData(g.nx, g.ny);
+    for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
+      const v = sl[j * g.nx + i], o = ((g.ny - 1 - j) * g.nx + i) * 4; if (v !== v || !PF.inPoly(g.x0 + i * g.cs, g.y0 + j * g.cs, prep.ring)) { im.data[o + 3] = 0; continue; }
+      const c = v < 10 ? [67, 160, 71] : v < 20 ? [253, 216, 53] : v < 30 ? [251, 140, 0] : v < 45 ? [229, 57, 53] : [123, 31, 162];
+      im.data[o] = c[0]; im.data[o + 1] = c[1]; im.data[o + 2] = c[2]; im.data[o + 3] = 170;
+    }
+    cx.putImageData(im, 0, 0); const pj = prep.pj, x1 = g.x0 + (g.nx - 1) * g.cs, y1 = g.y0 + (g.ny - 1) * g.cs;
+    const hs = Math.hypot; void hs;
+    try {
+      map.addSource('slopeimg', { type: 'image', url: cv.toDataURL('image/png'), coordinates: [pj.toLL(g.x0, y1), pj.toLL(x1, y1), pj.toLL(x1, g.y0), pj.toLL(g.x0, g.y0)] });
+      map.addLayer({ id: 'slopeimg', type: 'raster', source: 'slopeimg', paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 } }, map.getLayer('excl-fill') ? 'excl-fill' : undefined);
+    } catch (e) { fail('mapa de pendientes', e); }
+  }
+  function toggleSlopeMap() {
+    if (!slopeGrid) { toast('Carga primero el MDT (botón «Cargar MDT»)'); ensureMDT(); return; }
+    slopeOn = !slopeOn; refreshSlopeMap(); renderTab();
+    toast(slopeOn ? 'Pendiente: verde <10 % · amarillo 10-20 · naranja 20-30 · rojo 30-45 · morado >45 %' : 'Mapa de pendientes oculto', slopeOn ? 7000 : 1500);
+  }
+  function showProfile() {
+    const c = (finca.cotas || [])[(finca.cotas || []).length - 1];
+    if (!c) { toast('Mide primero una distancia (punto a punto) y pulsa Perfil'); return; }
+    if (!mdt) { toast('Cargando MDT…'); ensureMDT().then(() => { if (mdt) showProfile(); }); return; }
+    const N = 60, pts = []; let zmin = Infinity, zmax = -Infinity, real = 0, mxs = 0;
+    const D = distLL(c.a, c.b);
+    for (let k = 0; k <= N; k++) { const t = k / N, lon = c.a[0] + (c.b[0] - c.a[0]) * t, lat = c.a[1] + (c.b[1] - c.a[1]) * t, z = mdtSample(lon, lat); pts.push([t * D, z]); if (z != null) { zmin = Math.min(zmin, z); zmax = Math.max(zmax, z); } }
+    for (let k = 1; k <= N; k++) if (pts[k][1] != null && pts[k - 1][1] != null) { const dh = pts[k][1] - pts[k - 1][1], dd = D / N; real += Math.hypot(dd, dh); mxs = Math.max(mxs, Math.abs(dh) / dd * 100); }
+    if (!(zmax > zmin) && zmax !== zmin) { toast('Sin datos de cota en ese tramo'); return; }
+    const W = 320, Hh = 130, pad = Math.max(1, (zmax - zmin) * 0.15), lo = zmin - pad, hi = zmax + pad;
+    const X = (d) => (28 + d / D * (W - 36)).toFixed(1), Y = (z) => (Hh - 18 - (z - lo) / (hi - lo) * (Hh - 30)).toFixed(1);
+    const ok = pts.filter((q) => q[1] != null), d = ok.map((q, i) => (i ? 'L' : 'M') + X(q[0]) + ',' + Y(q[1])).join('');
+    $('#nv-txt').innerHTML = '<b>Perfil de elevación</b><svg viewBox="0 0 ' + W + ' ' + Hh + '" style="width:100%;background:#fafafa;border:1px solid #ddd;border-radius:6px"><path d="' + d + 'L' + X(D) + ',' + (Hh - 18) + 'L' + X(0) + ',' + (Hh - 18) + 'Z" fill="#a5d6a7" opacity=".6"/><path d="' + d + '" fill="none" stroke="#2e7d32" stroke-width="1.8"/><text x="2" y="12" font-size="9">' + Math.round(hi) + ' m</text><text x="2" y="' + (Hh - 20) + '" font-size="9">' + Math.round(lo) + ' m</text><text x="28" y="' + (Hh - 4) + '" font-size="9">0</text><text x="' + (W - 8) + '" y="' + (Hh - 4) + '" font-size="9" text-anchor="end">' + fmtM(D) + '</text></svg>' +
+      '<div>Distancia horizontal ' + fmtM(D) + ' · sobre el terreno ' + fmtM(real) + ' · desnivel ' + ((ok[ok.length - 1][1] - ok[0][1]) >= 0 ? '+' : '') + (ok[ok.length - 1][1] - ok[0][1]).toFixed(1) + ' m · pendiente media ' + (Math.abs(ok[ok.length - 1][1] - ok[0][1]) / D * 100).toFixed(0) + ' % · máx. local ' + mxs.toFixed(0) + ' %' + (mdt.src === 'AWS' ? ' <i>(modelo global ~30 m, orientativo)</i>' : '') + '</div>';
+    $('#nv-img').style.display = 'none'; $('#nv-del').style.display = 'none'; $('#nview').dataset.i = -1; $('#nview').classList.remove('hidden');
+  }
+  $('#ms-prof').onclick = showProfile;
+  /* ---------- v2.0: economía ampliada ---------- */
+  const TURNO = { nitens: 15, globulus: 12, castano: 40, roble: 60, abedul: 30, olmo: 40, pino: 30, radiata: 28 };
+  function econ2(counts) {
+    const E = finca.econ, st = PF.stats(finca.ring), ha = st.area / 1e4, N = Object.keys(counts).reduce((s, k) => s + counts[k], 0) || 1;
+    const nz = (v, d) => (v == null || v === '' || isNaN(+v) ? d : +v), marras = nz(E.marras, 8) / 100, r = nz(E.tasa, 4) / 100;
+    let planta = 0, mano = 0, vol = 0, ing = 0, falta = false; const sps = [], T0 = 0;
+    Object.keys(counts).forEach((sp) => {
+      const n = counts[sp], e = E.sp[sp] || {}, sh = n / N, haS = ha * sh, tur = nz(e.turno, TURNO[sp] || 25);
+      planta += n * (1 + marras) * nz(e.planta, 0); mano += n * (1 + marras) * nz(E.coste, 0);
+      const v = haS * nz(e.rend, 0), i = v * nz(e.precio, 0); if (e.rend == null || e.precio == null || e.rend === '' || e.precio === '') falta = true;
+      vol += v; ing += i; sps.push({ sp: sp, n: n, haS: haS, tur: tur, v: v, i: i, rend: nz(e.rend, 0) });
+    });
+    const prepT = ha * nz(E.prep, 0), repT = ha * nz(E.repl, 0), mantY = ha * nz(E.mant, 0), c0 = planta + mano + prepT + repT;
+    const maxT = Math.max.apply(null, sps.map((s) => s.tur).concat([1])), flows = [];
+    for (let t = 0; t <= maxT; t++) {
+      let f = t === 0 ? -c0 : 0;
+      sps.forEach((s) => { if (t >= 1 && t <= s.tur) f -= mantY * s.haS / ha; if (t === s.tur) f += s.i; });
+      flows.push(f);
+    }
+    const vanAt = (rr) => flows.reduce((s, f, t) => s + f / Math.pow(1 + rr, t), 0);
+    let tir = null; if (flows.some((f) => f > 0) && vanAt(-0.9) > 0 && vanAt(2) < 0) { let a = -0.9, b = 2; for (let k = 0; k < 80; k++) { const m = (a + b) / 2; if (vanAt(m) > 0) a = m; else b = m; } tir = (a + b) / 2; }
+    return { ha: ha, planta: planta, mano: mano, prep: prepT, repl: repT, c0: c0, mantY: mantY, vol: vol, ing: ing, van: vanAt(r), tir: tir, sps: sps, maxT: maxT, falta: falta, tasa: r, total: N };
+  }
+  const nf = (v, d) => (v == null ? '—' : v.toLocaleString('es-ES', { maximumFractionDigits: d == null ? 0 : d }));
+  function econ2HTML() {
+    if (!prep || !res.total) return '';
+    const q = econ2(res.counts), e = (v) => nf(v) + ' €';
+    let h = '<table><tr><th colspan="2">Presupuesto de plantación</th></tr>' +
+      '<tr><td>Planta (incl. ' + nf(+(finca.econ.marras == null ? 8 : finca.econ.marras)) + ' % reposición)</td><td>' + e(q.planta) + '</td></tr>' +
+      '<tr><td>Plantación (mano de obra)</td><td>' + e(q.mano) + '</td></tr>' +
+      '<tr><td>Preparación del terreno (' + nf(q.ha, 2) + ' ha)</td><td>' + e(q.prep) + '</td></tr>' +
+      '<tr><td>Replanteo / marcaje</td><td>' + e(q.repl) + '</td></tr>' +
+      '<tr><td><b>Inversión inicial</b></td><td><b>' + e(q.c0) + '</b> · ' + nf(q.ha ? q.c0 / q.ha : 0) + ' €/ha · ' + nf(q.c0 / q.total, 2) + ' €/árbol</td></tr>' +
+      '<tr><td>Mantenimiento anual</td><td>' + e(q.mantY) + '/año</td></tr>' +
+      '<tr><td>Volumen a turno (' + q.sps.map((s) => esc(S[s.sp].name.split(' ')[0]) + ' ' + s.tur + ' a').join(', ') + ')</td><td>' + nf(q.vol) + ' m³</td></tr>' +
+      '<tr><td>Ingreso bruto a turno</td><td>' + e(q.ing) + '</td></tr>' +
+      '<tr><td><b>VAN</b> al ' + nf(q.tasa * 100, 1) + ' %</td><td><b>' + e(q.van) + '</b></td></tr>' +
+      '<tr><td><b>TIR</b></td><td><b>' + (q.tir == null ? '—' : nf(q.tir * 100, 1) + ' %') + '</b></td></tr></table>';
+    if (q.falta) h += '<div class="warn warn">Faltan datos de rendimiento (m³/ha) o precio de alguna especie: el ingreso, el VAN y la TIR son incompletos.</div>';
+    const ys = []; for (let t = 0; t <= q.maxT; t += 5) ys.push(t); if (ys[ys.length - 1] !== q.maxT) ys.push(q.maxT);
+    h += '<table><tr><th>Año</th>' + ys.map((t) => '<th>' + t + '</th>').join('') + '</tr><tr><td>m³ (est.)</td>' + ys.map((t) => '<td>' + nf(q.sps.reduce((s, sp) => { const x = Math.min(1, t / sp.tur); return s + sp.v * (3 * x * x - 2 * x * x * x); }, 0)) + '</td>').join('') + '</tr></table>' +
+      '<div class="muted">Proyección de volumen con curva de crecimiento sigmoidea genérica hasta el rendimiento al turno que introduzcas. Todos los valores económicos son orientativos; usa los tuyos.</div>';
+    return h;
+  }
+  async function runScenarios() {
+    if (!prep) { toast('Primero elige la parcela'); return; }
+    const out = [], base = finca.params, sc = [{ n: 'Actual', f: (f) => f }, { n: 'Tresbolillo (mismo árbol)', f: (f) => { f.params.pattern = 'tres'; return f; } }].concat(Object.keys(S).filter((k) => k !== base.core).map((k) => ({ n: 'Todo ' + S[k].name, f: (f) => { f.params.core = k; return f; } })));
+    for (let i = 0; i < sc.length; i++) {
+      toast('Escenario ' + (i + 1) + '/' + sc.length + ': ' + sc[i].n, 20000); await new Promise((r) => setTimeout(r, 30));
+      try {
+        const f2 = sc[i].f(JSON.parse(JSON.stringify(finca))); f2.params.opt = 'auto'; f2.manual = []; f2.removed = [];
+        let r2;
+        if (i === 0) r2 = { counts: res.counts, total: res.total };
+        else { const p2 = PF.prepare(f2, norm); p2.slopeFn = prep.slopeFn; p2.slopeMax = prep.slopeMax; const b = PF.optimizeAuto(p2, f2, { fixedAngle: null, budget: 800 }); f2.params.angle = b.angle; f2.params.shU = b.shU; f2.params.shV = b.shV; r2 = PF.generate(p2, f2); }
+        const q = econ2(r2.counts); out.push({ n: sc[i].n, t: r2.total, q: q });
+      } catch (e) { out.push({ n: sc[i].n, t: 0, q: null, err: e.message }); }
+    }
+    toast('Escenarios calculados', 2000);
+    const el = $('#scenres'); if (!el) return;
+    const best = out.reduce((b, o) => (o.q && (!b || o.q.van > b.q.van) ? o : b), null);
+    el.innerHTML = '<div style="overflow-x:auto"><table><tr><th>Escenario</th><th>Árb.</th><th>Inversión</th><th>m³</th><th>Ingreso</th><th>VAN</th><th>TIR</th></tr>' + out.map((o) => '<tr' + (o === best ? ' style="background:#e8f5e9"' : '') + '><td>' + esc(o.n) + '</td><td>' + o.t + '</td>' + (o.q ? '<td>' + nf(o.q.c0) + '</td><td>' + nf(o.q.vol) + '</td><td>' + nf(o.q.ing) + '</td><td>' + nf(o.q.van) + '</td><td>' + (o.q.tir == null ? '—' : nf(o.q.tir * 100, 1) + ' %') + '</td>' : '<td colspan="5">' + esc(o.err || '') + '</td>') + '</tr>').join('') + '</table></div><div class="muted">€. Verde = mayor VAN con tus precios. Cada escenario re-optimiza la matriz y asume 100 % de esa especie; no tiene en cuenta la moratoria del eucalipto ni las ordenanzas.</div>';
+  }
+  /* ---------- v2.0: linderos automáticos (SIGPAC vecinos + OpenStreetMap) ---------- */
+  async function autoLinderos() {
+    if (!prep || !finca.ring) { toast('Primero elige la parcela'); return; }
+    const pj = prep.pj, ring = prep.ring, xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]), m = 40;
+    const bb = [pj.toLL(Math.min.apply(null, xs) - m, Math.min.apply(null, ys) - m), pj.toLL(Math.max.apply(null, xs) + m, Math.max.apply(null, ys) + m)];
+    toast('Buscando vecinos (SIGPAC) y viales/ríos/edificios (OpenStreetMap)…', 30000);
+    let nb = [], osm = [], err = [];
+    try {
+      const fs = await sigpacQuery({ bbox: [bb[0][0], bb[0][1], bb[1][0], bb[1][1]].map((v) => v.toFixed(6)).join(','), limit: '400' });
+      try { await sigpacUsos(fs); } catch (e) { /* */ }
+      fs.forEach((f) => ringsOf(f).forEach((r) => { const xy = r.map((p) => pj.toXY(p[0], p[1])), c = xy.reduce((a, p) => [a[0] + p[0] / xy.length, a[1] + p[1] / xy.length], [0, 0]); if (PF.inPoly(c[0], c[1], ring)) return; nb.push({ xy: xy, uso: (f.properties || {}).uso_sigpac || '' }); }));
+    } catch (e) { err.push('SIGPAC: ' + e.message); }
+    try {
+      const q = '[out:json][timeout:20];(way["highway"](' + bb[0][1] + ',' + bb[0][0] + ',' + bb[1][1] + ',' + bb[1][0] + ');way["waterway"~"^(river|canal)$"](' + bb[0][1] + ',' + bb[0][0] + ',' + bb[1][1] + ',' + bb[1][0] + ');way["railway"="rail"](' + bb[0][1] + ',' + bb[0][0] + ',' + bb[1][1] + ',' + bb[1][0] + ');way["building"](' + bb[0][1] + ',' + bb[0][0] + ',' + bb[1][1] + ',' + bb[1][0] + '););out geom;';
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 25000);
+      const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl.signal }); clearTimeout(to);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      (d.elements || []).forEach((w) => {
+        if (!w.geometry || !w.tags) return; const t = w.tags;
+        let tipo = null, w2 = 0;
+        if (t.building) { tipo = 'vivienda'; w2 = 3; }
+        else if (t.railway === 'rail') { tipo = 'ferrocarril'; w2 = 4; }
+        else if (t.waterway) { tipo = 'rio'; w2 = 4; }
+        else if (t.highway) { tipo = /^(motorway|trunk|primary|secondary|tertiary)(_link)?$/.test(t.highway) ? 'carretera' : (/^(footway|steps|cycleway|bridleway)$/.test(t.highway) ? null : 'camino'); w2 = tipo === 'carretera' ? 3 : 1; }
+        if (tipo) osm.push({ tipo: tipo, w: w2, xy: w.geometry.map((p) => pj.toXY(p.lon, p.lat)), closed: !!t.building });
+      });
+    } catch (e) { err.push('OpenStreetMap: ' + (e.name === 'AbortError' ? 'sin respuesta' : e.message)); }
+    if (!nb.length && !osm.length) { toast('No se pudo clasificar los linderos (' + err.join('; ') + ')', 8000); return; }
+    const dPoly = (x, y, pts, closed) => { let md = Infinity; for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; md = Math.min(md, PF.distSeg(x, y, a[0], a[1], b[0], b[1])); } return md; };
+    const USO = (u) => (u === 'CA' ? 'camino' : u === 'ED' || u === 'ZU' ? 'vivienda' : u === 'AG' ? 'rio' : ['FO', 'MT', 'IM', 'PR', 'PA', 'ZV'].indexOf(u) >= 0 ? 'forestal' : u ? 'agricola' : null);
+    const PRIO = { ferrocarril: 6, carretera: 5, vivienda: 4, rio: 3, camino: 2, agricola: 1, forestal: 0 };
+    const cnt = {}; let ch = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i], b = ring[(i + 1) % ring.length], got = {};
+      for (let k = 0; k <= 4; k++) {
+        const x = a[0] + (b[0] - a[0]) * (k + 0.5) / 5, y = a[1] + (b[1] - a[1]) * (k + 0.5) / 5;
+        osm.forEach((o) => { if (dPoly(x, y, o.xy, o.closed) <= 4 + o.w) got[o.tipo] = (got[o.tipo] || 0) + 1; });
+        let best = null, bd = 3; nb.forEach((n) => { const dd = dPoly(x, y, n.xy, true); if (dd < bd) { bd = dd; best = n; } });
+        if (best) { const t = USO(best.uso); if (t) got[t] = (got[t] || 0) + 0.6; }
+      }
+      let tipo = null, sc = 0; Object.keys(got).forEach((t) => { const s = got[t] + PRIO[t] * 0.05; if (s > sc && got[t] >= 1) { sc = s; tipo = t; } });
+      if (tipo) { finca.edges[i].tipo = tipo; cnt[tipo] = (cnt[tipo] || 0) + 1; ch++; }
+    }
+    optCache[finca.id] = null; recalc(); renderTab();
+    toast(ch ? ch + ' lados clasificados: ' + Object.keys(cnt).map((t) => cnt[t] + ' ' + L[t].label.split(' /')[0].toLowerCase()).join(', ') + '. Revísalos (↶ deshacer disponible).' + (err.length ? ' Fallo parcial: ' + err.join('; ') : '') : 'No se detectó ningún lindero reconocible' + (err.length ? ' (' + err.join('; ') + ')' : ''), 10000);
+  }
+  /* ---------- v2.0: borrador de comunicación ---------- */
+  function draftText(o) {
+    const st = PF.stats(finca.ring), p = finca.params, fm = ferradoM2(), d = new Date(), q = econ2(res.counts);
+    const es = Object.keys(res.counts).map((k) => res.counts[k] + ' ' + S[k].name).join(', ');
+    const R = runs().map((r, i) => '  ' + (i + 1) + '. ' + (L[finca.edges[r.edges[0]].tipo] || L.libre).label + ' (' + r.len.toFixed(0) + ' m)').join('\n');
+    const exc = (finca.exclusions || []).length ? (finca.exclusions || []).map((e, i) => '  ' + (i + 1) + '. ' + (e.tipo === 'camino' ? 'Camino de servicio' : e.tipo === 'saca' ? 'Pista de saca' : e.tipo === 'cargadero' ? 'Cargadero' : e.kind === 'line' ? 'Línea/servidumbre' : 'Zona excluida') + (e.kind === 'line' ? ' (' + e.buffer + ' m a cada lado)' : '')).join('\n') : '  Ninguna.';
+    const cu = utm29(PF.centroidLL(finca.ring)[0], PF.centroidLL(finca.ring)[1]);
+    return 'BORRADOR DE COMUNICACIÓN / SOLICITUD DE PLANTACIÓN FORESTAL\n(Documento orientativo generado por PLANTFINC. Debe adaptarse y presentarse en el modelo oficial vigente de la Xunta de Galicia / Distrito Forestal; no sustituye a este.)\n\n' +
+      '1. DATOS DEL TITULAR\n  Nombre / razón social: ' + (o.nombre || '________________') + '\n  NIF: ' + (o.nif || '________________') + '\n  Domicilio: ' + (o.dir || '________________') + '\n  Teléfono: ' + (o.tel || '________________') + '   Correo: ' + (o.mail || '________________') + '\n\n' +
+      '2. DATOS DE LA FINCA\n  Denominación: ' + finca.name + '\n  Concello: ' + C[finca.concello].name + '\n  Referencia SIGPAC / catastral: ' + (o.ref || '________________') + '\n  Superficie: ' + (st.area / 1e4).toFixed(4) + ' ha' + (fm ? ' (' + (st.area / fm).toFixed(1) + ' ferrados)' : '') + '\n  Centro aprox. (ETRS89 UTM 29N): X ' + cu[0].toFixed(0) + ', Y ' + cu[1].toFixed(0) + '\n  Uso anterior: ' + (USOS[finca.uso] || finca.uso) + '\n' + (slopeStat ? '  Pendiente media / máxima: ' + slopeStat.mean.toFixed(0) + ' % / ' + slopeStat.max.toFixed(0) + ' %\n' : '') + '\n' +
+      '3. ACTUACIÓN PREVISTA\n  Tipo: plantación forestal (repoblación tras corta).\n  Especies y nº de pies: ' + es + ' (total ' + res.total + ').\n  Densidad: ' + Math.round(res.total / (st.area / 1e4)) + ' pies/ha.\n  Disposición: ' + (p.pattern === 'tres' ? 'tresbolillo, ' + p.sx + ' m entre árboles' : p.pattern === 'curvas' ? 'filas en curvas de nivel, ' + p.sx + ' m en la fila' : 'marco real ' + p.sx + ' × ' + p.sy + ' m') + '; mínima entre pies ' + p.dmin + ' m.\n  Franja de frondosas en los límites: ' + (p.rows || 0) + ' fila(s) cuando procede.\n  Método: apertura de hoyos / plantación manual con replanteo topográfico.\n' + (o.fecha ? '  Fecha prevista de ejecución: ' + o.fecha + '\n' : '') + '\n' +
+      '4. LINDEROS Y DISTANCIAS APLICADAS (Lei 7/2012, art. 68 y anexo II)\n' + R + '\n\n5. EXCLUSIONES (caminos, pistas, líneas, zonas)\n' + exc + '\n\n' +
+      '6. DOCUMENTACIÓN QUE SE ADJUNTA\n  - Plano de la finca y plano de replanteo (informe PDF de PLANTFINC).\n  - Coordenadas de los vértices y de los pies (GPX / KML / DXF / CSV).\n  - Acreditación de la titularidad: ____________________\n\n' +
+      '7. DECLARACIÓN\n  El/la abajo firmante declara que los datos son ciertos, que cumplirá las distancias mínimas legales a linderos, viales, cauces y edificaciones, y que cuenta con las autorizaciones que, en su caso, correspondan (incluida la normativa sobre eucalipto: Lei 11/2021, moratoria hasta 31/12/2030).\n\n' +
+      '  En ' + C[finca.concello].name + ', a ' + d.getDate() + ' de ' + ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][d.getMonth()] + ' de ' + d.getFullYear() + '\n\n  Firma: ____________________\n' + (q.c0 ? '\n(Inversión estimada: ' + nf(q.c0) + ' €)\n' : '');
+  }
+  function openDraft() {
+    if (!prep || !res.total) { toast('Primero elige la parcela y calcula la matriz'); return; }
+    store.owner = store.owner || {}; const o = store.owner;
+    $('#dr-f').innerHTML = [['nombre', 'Nombre / razón social'], ['nif', 'NIF'], ['dir', 'Domicilio'], ['tel', 'Teléfono'], ['mail', 'Correo'], ['ref', 'Ref. SIGPAC / catastral'], ['fecha', 'Fecha prevista (opcional)']].map((x) => '<div><label>' + x[1] + '</label><input data-o="' + x[0] + '" value="' + esc(o[x[0]] || '') + '"></div>').join('');
+    const upd = () => { $('#dr-t').value = draftText(o); };
+    $('#dr-f').oninput = (e) => { const k = e.target.dataset.o; if (k) { o[k] = e.target.value; upd(); try { persist(); } catch (x) { /* */ } } };
+    upd(); $('#draft').classList.remove('hidden');
+  }
+  $('#dr-x').onclick = () => $('#draft').classList.add('hidden');
+  $('#dr-dl').onclick = () => download('borrador-comunicacion-' + slug(finca.name) + '.txt', '﻿' + $('#dr-t').value.replace(/\n/g, '\r\n'), 'text/plain;charset=utf-8');
+  $('#dr-cp').onclick = () => { try { navigator.clipboard.writeText($('#dr-t').value).then(() => toast('Copiado', 1500)); } catch (e) { $('#dr-t').select(); document.execCommand('copy'); toast('Copiado', 1500); } };
+  /* ---------- v2.0: mapa sin conexión ---------- */
+  async function downloadOffline() {
+    if (!mapReady || typeof caches === 'undefined') { toast('Este navegador no permite guardar mapas sin conexión'); return; }
+    const b = map.getBounds(), z0 = Math.max(10, Math.floor(map.getZoom())), z1 = Math.min(z0 + 2, 17), base = (map.getStyle().layers.filter((l) => l.type === 'raster' && l.layout && l.layout.visibility !== 'none' && /^(osm|topo|pnoa|base|ortho)/.test(l.id)).map((l) => l.source)[0]) || 'osm';
+    const src = map.getStyle().sources[base]; if (!src || !src.tiles) { toast('Capa base no descargable'); return; }
+    const tl = (lon, lat, z) => { const n = Math.pow(2, z), x = Math.floor((lon + 180) / 360 * n), r = lat * Math.PI / 180, y = Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n); return [x, y]; };
+    const urls = [];
+    for (let z = z0; z <= z1; z++) { const a = tl(b.getWest(), b.getNorth(), z), c = tl(b.getEast(), b.getSouth(), z); for (let x = a[0]; x <= c[0]; x++) for (let y = a[1]; y <= c[1]; y++) urls.push(src.tiles[(x + y) % src.tiles.length].replace('{z}', z).replace('{x}', x).replace('{y}', y)); }
+    if (urls.length > 900) { toast('Zona demasiado grande (' + urls.length + ' teselas, máx. 900): acerca el mapa', 6000); return; }
+    const cache = await caches.open('plantfinc-tiles'); let ok = 0, bad = 0;
+    for (let i = 0; i < urls.length; i += 6) {
+      toast('Descargando mapa… ' + Math.min(i, urls.length) + '/' + urls.length, 20000);
+      await Promise.all(urls.slice(i, i + 6).map(async (u) => { try { const r = await fetch(u); if (r.ok) { await cache.put(u, r); ok++; } else bad++; } catch (e) { bad++; } }));
+    }
+    toast('Mapa guardado: ' + ok + ' teselas (' + (z0) + '–' + z1 + ' de zoom, capa «' + base + '»)' + (bad ? ' · ' + bad + ' fallidas' : '') + '. Funciona sin conexión en esta zona.', 8000);
   }
   /* ---------- cotas (medir distancias) ---------- */
   let ms = null, cMarks = [];
@@ -566,20 +1028,28 @@ details>*:not(summary){margin-bottom:6px}
         cMarks.push(new maplibregl.Marker({ element: el }).setLngLat([(c.a[0] + c.b[0]) / 2, (c.a[1] + c.b[1]) / 2]).addTo(map));
       }
     });
+    ((finca && finca.refs) || []).forEach((r, i) => {
+      f.push({ type: 'Feature', properties: { t: 'p' }, geometry: { type: 'Point', coordinates: r.ll } });
+      if (mapReady && typeof maplibregl.Marker === 'function') {
+        const el = document.createElement('div'); el.className = 'cota'; el.style.background = '#fff3e0'; el.textContent = 'R' + (i + 1);
+        cMarks.push(new maplibregl.Marker({ element: el, offset: [0, -14] }).setLngLat(r.ll).addTo(map));
+      }
+    });
     if (ms && ms.p) f.push({ type: 'Feature', properties: { t: 'p' }, geometry: { type: 'Point', coordinates: ms.p } });
     setSrc('cotas', { type: 'FeatureCollection', features: f });
   }
   function msInfo(t) { $('#ms-info').textContent = t; }
   function setMeasTab(on) { document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('act', on && b.dataset.tab === 'medir')); }
   function startMeasure() {
+    if (typeof st !== 'undefined' && st) endStake(); if (typeof nt !== 'undefined' && nt) endNotes();
     if (!mapReady || onList) return;
     closeSheet(); endSigpac(); if (draw) endDraw(); if (tr) endTramo(); if (tt) endTrees(); $('#menu').classList.add('hidden');
     ms = { p: null, mode: ms ? ms.mode : 'pp' }; $('#msbar').classList.remove('hidden'); setMeasTab(true); msMode(ms.mode);
   }
   function msMode(m) {
     ms.mode = m; ms.p = null;
-    $('#ms-pp').classList.toggle('on', m === 'pp'); $('#ms-pl').classList.toggle('on', m === 'pl');
-    msInfo(m === 'pp' ? 'Toca el primer punto (se ajusta a árboles y vértices).' : 'Toca un punto (o un árbol): se mide la distancia perpendicular al lindero más cercano.');
+    $('#ms-pp').classList.toggle('on', m === 'pp'); $('#ms-pl').classList.toggle('on', m === 'pl'); $('#ms-rf').classList.toggle('on', m === 'rf');
+    msInfo(m === 'pp' ? 'Toca el primer punto (se ajusta a árboles y vértices).' : m === 'pl' ? 'Toca un punto (o un árbol): se mide la distancia perpendicular al lindero más cercano.' : 'Toca un punto de referencia (vértice, árbol o cualquier punto): se muestran sus coordenadas UTM y geográficas.');
     refreshCotas();
   }
   function endMeasure() { ms = null; $('#msbar').classList.add('hidden'); setMeasTab(false); refreshCotas(); }
@@ -605,6 +1075,13 @@ details>*:not(summary){margin-bottom:6px}
   }
   function msTap(e) {
     const pt = snapPt(e);
+    if (ms.mode === 'rf') {
+      finca.refs = finca.refs || []; if (finca.refs.length >= 8) finca.refs.shift();
+      finca.refs.push({ ll: pt }); const n = finca.refs.length, u = utm29(pt[0], pt[1]);
+      const txt = 'R' + n + ' · UTM 29N (ETRS89) X ' + fmtCoord(u[0], 2) + ' · Y ' + fmtCoord(u[1], 2) + ' · lat ' + pt[1].toFixed(6) + ' · lon ' + pt[0].toFixed(6);
+      msInfo(txt); try { navigator.clipboard && navigator.clipboard.writeText('X ' + u[0].toFixed(2) + ' Y ' + u[1].toFixed(2) + ' (' + pt[1].toFixed(6) + ', ' + pt[0].toFixed(6) + ')'); } catch (er) { /* */ }
+      persist(); refreshCotas(); return;
+    }
     if (ms.mode === 'pl') {
       if (!finca.ring) return;
       const f = footOnBoundary(pt); if (!f) return;
@@ -636,7 +1113,8 @@ details>*:not(summary){margin-bottom:6px}
     close(cur);
     return out;
   }
-  const ARB = () => [['euc', 'Eucalipto']].concat(Object.keys(S).filter((k) => S[k].group !== 'euc').map((k) => [k, S[k].name]));
+  const ARB = () => [['euc', 'Sin franja (mismo árbol)']].concat(Object.keys(S).filter((k) => S[k].kind !== 'euc').map((k) => [k, S[k].name]));
+  const coreOpts = (cur) => [['Eucaliptos', 'euc'], ['Frondosas', 'frond'], ['Coníferas (pinos)', 'conif']].map((g) => '<optgroup label="' + g[0] + '">' + Object.keys(S).filter((k) => S[k].kind === g[1]).map((k) => '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + esc(S[k].name) + '</option>').join('') + '</optgroup>').join('');
   const edgeArb = (e) => (e.franja ? e.especie : 'euc');
   let eMarks = [];
   function refreshEdgeNums() {
@@ -669,6 +1147,7 @@ details>*:not(summary){margin-bottom:6px}
     refreshMap();
   }
   function startTramo() {
+    if (typeof st !== 'undefined' && st) endStake(); if (typeof nt !== 'undefined' && nt) endNotes();
     if (!mapReady || onList || !finca.ring) { toast('Primero elige la parcela en el mapa SIGPAC'); return; }
     closeSheet(); endSigpac(); if (ms) endMeasure(); if (draw) endDraw();
     tr = { a: null, b: null, rev: false };
@@ -708,6 +1187,8 @@ details>*:not(summary){margin-bottom:6px}
     'excl-poly': 'Toca los vértices de la zona de exclusión (mín. 3).',
     'excl-line': 'Toca los puntos de la línea eléctrica / servidumbre, mín. 2.',
     'excl-camino': 'Toca los puntos del camino de servicio (eje), mín. 2.',
+    'excl-saca': 'Toca los puntos del eje de la pista de saca (mín. 2).',
+    'excl-carga': 'Toca los vértices del cargadero / parque de madera (mín. 3).',
     subzona: 'Toca los vértices de la subzona (mín. 3).',
     anchor: 'Toca el punto donde quieres anclar la matriz.',
     pick: 'Toca un punto dentro de la finca (SIGPAC).'
@@ -725,6 +1206,7 @@ details>*:not(summary){margin-bottom:6px}
   }
   function setCollapsed(v) { if (v) { reopen = sheetOpen; closeSheet(); } else if (reopen) { reopen = false; openSheet(); } }
   function startDraw(mode) {
+    if (typeof st !== 'undefined' && st) endStake(); if (typeof nt !== 'undefined' && nt) endNotes();
     if (!mapReady) { toast('El mapa no está disponible'); return; }
     endSigpac(); if (ms) endMeasure(); if (tr) endTramo(); if (tt) endTrees();
     draw = { mode: mode, pts: [] };
@@ -738,7 +1220,7 @@ details>*:not(summary){margin-bottom:6px}
     const f = [];
     if (draw) {
       draw.pts.forEach((p) => f.push({ type: 'Feature', properties: { t: 'pt' }, geometry: { type: 'Point', coordinates: p } }));
-      const poly = draw.mode === 'finca' || draw.mode === 'excl-poly' || draw.mode === 'subzona';
+      const poly = draw.mode === 'finca' || draw.mode === 'excl-poly' || draw.mode === 'excl-carga' || draw.mode === 'subzona';
       if (draw.pts.length >= 2) f.push({ type: 'Feature', properties: { t: 'line' }, geometry: { type: 'LineString', coordinates: poly && draw.pts.length >= 3 ? closeRing(draw.pts) : draw.pts } });
     }
     setSrc('draw', { type: 'FeatureCollection', features: f });
@@ -747,6 +1229,8 @@ details>*:not(summary){margin-bottom:6px}
   function onMapClick(e) {
     if (sg) { sgTap(e); return; }
     if (tt) { ttTap(e); return; }
+    if (st) { stTap(e); return; }
+    if (nt) { ntTap(e); return; }
     if (tr) { trTap(e); return; }
     if (ms) { msTap(e); return; }
     if (!draw) {
@@ -765,22 +1249,24 @@ details>*:not(summary){margin-bottom:6px}
   function finishDraw() {
     if (!draw) return;
     const m = draw.mode, pts = draw.pts;
-    const need = { finca: 3, 'excl-poly': 3, subzona: 3, 'excl-line': 2, 'excl-camino': 2 }[m];
+    const need = { finca: 3, 'excl-saca': 2, 'excl-carga': 3, 'excl-poly': 3, subzona: 3, 'excl-line': 2, 'excl-camino': 2 }[m];
     if (pts.length < need) { toast('Faltan puntos (mín. ' + need + ')'); return; }
     if (m === 'finca') { finca.ring = pts.slice(); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; }
     else if (m === 'excl-poly') finca.exclusions.push({ kind: 'poly', coords: pts.slice() });
     else if (m === 'excl-line') finca.exclusions.push({ kind: 'line', tipo: 'linea', coords: pts.slice(), buffer: num($('#buf') && $('#buf').value, 15) });
+    else if (m === 'excl-saca') finca.exclusions.push({ kind: 'line', tipo: 'saca', coords: pts.slice(), buffer: num($('#bufc') && $('#bufc').value, 3) });
+    else if (m === 'excl-carga') finca.exclusions.push({ kind: 'poly', tipo: 'cargadero', coords: pts.slice() });
     else if (m === 'excl-camino') finca.exclusions.push({ kind: 'line', tipo: 'camino', coords: pts.slice(), buffer: num($('#bufc') && $('#bufc').value, 3) });
     else if (m === 'subzona') finca.subzonas.push({ sp: ($('#zsp') && $('#zsp').value) || 'castano', coords: pts.slice() });
     endDraw(); recalc(); renderTab();
     if (m === 'finca') fitFinca();
   }
   $('#ms-ok').onclick = endMeasure; $('#tt-ok').onclick = endTrees;
-  $('#ms-pp').onclick = () => { if (ms) msMode('pp'); }; $('#ms-pl').onclick = () => { if (ms) msMode('pl'); };
+  $('#ms-pp').onclick = () => { if (ms) msMode('pp'); }; $('#ms-pl').onclick = () => { if (ms) msMode('pl'); }; $('#ms-rf').onclick = () => { if (ms) msMode('rf'); };
   $('#tr-x').onclick = endTramo; $('#tr-ok').onclick = trApply;
   $('#tr-rev').onclick = () => { if (tr && tr.a != null && tr.b != null) { tr.rev = !tr.rev; trPreview(); } };
-  $('#ms-undo').onclick = () => { if (ms && ms.p) { ms.p = null; refreshCotas(); } else if (finca.cotas.length) { finca.cotas.pop(); recalc(); } };
-  $('#ms-clear').onclick = () => { finca.cotas = []; if (ms) ms.p = null; recalc(); };
+  $('#ms-undo').onclick = () => { if (ms && ms.mode === 'rf') { finca.refs.pop(); persist(); refreshCotas(); } else if (ms && ms.p) { ms.p = null; refreshCotas(); } else if (finca.cotas.length) { finca.cotas.pop(); recalc(); } };
+  $('#ms-clear').onclick = () => { finca.cotas = []; if (ms && ms.mode === 'rf') finca.refs = []; if (ms) ms.p = null; recalc(); };
   $('#sg-x').onclick = endSigpac;
   $('#sg-me').onclick = () => { if (lastFix && mapReady) map.flyTo({ center: [lastFix[0], lastFix[1]], zoom: 18 }); else toast('Sin posición GPS todavía'); };
   $('#sg-use').onclick = sgUse;
@@ -791,7 +1277,7 @@ details>*:not(summary){margin-bottom:6px}
   /* ---------- gestión de fincas ---------- */
   function openFinca(f) {
     flush();
-    finca = migrate(JSON.parse(JSON.stringify(f))); openEdge = -1;
+    finca = migrate(JSON.parse(JSON.stringify(f))); openEdge = -1; hist = []; histI = -1;
     enterMap(); recalc(); renderTab();
     if (finca.ring) fitFinca();
   }
@@ -804,7 +1290,7 @@ details>*:not(summary){margin-bottom:6px}
     setHeader(); if (mapReady) map.resize();
   }
   function showList() {
-    flush(); if (draw) endDraw(); endSigpac(); if (ms) endMeasure(); endTramo(); if (tt) endTrees(); closeSheet();
+    flush(); if (draw) endDraw(); endSigpac(); if (ms) endMeasure(); endTramo(); if (tt) endTrees(); if (st) endStake(); if (nt) endNotes(); closeSheet();
     ['#hmenu', '#menu'].forEach((x) => $(x).classList.add('hidden'));
     onList = true; $('#vList').classList.remove('hidden'); $('#fab').classList.remove('hidden');
     renderList(); setHeader();
@@ -823,7 +1309,8 @@ details>*:not(summary){margin-bottom:6px}
       (fs.length ? fs.map((f) => '<div class="card"><div class="fin" data-act="l-open" data-id="' + f.id + '"><div class="ic">&#x1F332;</div><div style="flex:1;min-width:0"><div class="t">' + esc(f.name) + '</div><div class="s">' + info(f) + '</div></div><span style="color:#bbb;font-size:1.4rem">&#x203A;</span></div>' +
         '<div class="facts"><button data-act="l-edit" data-id="' + f.id + '">&#x270E; Editar</button><button data-act="l-copy" data-id="' + f.id + '">&#x29C9; Copiar</button><button data-act="l-exp" data-id="' + f.id + '">&#x1F4E4; Exportar</button><button class="rojo" data-act="l-del" data-id="' + f.id + '">&#x1F5D1; Eliminar</button></div></div>').join('')
         : '<div class="empty">No hay fincas.<br>Pulsa «Nueva finca» para empezar<br>o importa una desde un archivo.</div>') +
-      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v1.6 · &#x1F4F1; solo este dispositivo</div>';
+      '<div class="g2" style="margin-top:12px"><button class="btn sec" data-act="backup">&#x1F4BE; Copia de seguridad</button><button class="btn sec" data-act="restore">&#x267B; Restaurar copia</button></div>' +
+      '<div class="muted" style="text-align:center;margin-top:12px">PLANTFINC v2.0 · &#x1F4F1; solo este dispositivo</div>';
   }
   function createFromSheet() {
     const q = $('#n-q').value, name = ($('#n-name').value || '').trim() || 'Finca nueva', conc = $('#n-conc').value;
@@ -988,6 +1475,7 @@ details>*:not(summary){margin-bottom:6px}
     if (sg) sgPaint();
   }
   function startSigpac() {
+    if (typeof st !== 'undefined' && st) endStake(); if (typeof nt !== 'undefined' && nt) endNotes();
     if (!mapReady) { toast('El mapa no está disponible'); return; }
     closeSheet(); $('#nsheet').classList.add('hidden');
     if (ms) endMeasure(); if (tr) endTramo(); if (tt) endTrees(); if (draw) endDraw(); if (sg) endSigpac();
@@ -1040,6 +1528,7 @@ details>*:not(summary){margin-bottom:6px}
     setSrc('gps', { type: 'FeatureCollection', features: [
       polyFeature(ring, { t: 'acc' }),
       { type: 'Feature', properties: { t: 'pt' }, geometry: { type: 'Point', coordinates: [c.longitude, c.latitude] } }] });
+    if (st) stUpdate();
   }
   $('#btn-gps').onclick = () => { if (gpsWatch === null) startGPS(); else stopGPS(); };
 
@@ -1076,7 +1565,34 @@ details>*:not(summary){margin-bottom:6px}
         else last = v[0] + ': HTTP ' + r.status + ' ' + t.slice(0, 80).replace(/\s+/g, ' ');
       } catch (e) { last = v[0] + ': ' + e.message; }
     }
-    throw new Error(last);
+    mdtErr = last;
+    try { const g = await fetchTerrariumGrid(bb); g.warn = last; return g; }
+    catch (e2) { throw new Error(last + ' | modelo global: ' + e2.message); }
+  }
+  let mdtErr = '';
+  async function fetchTerrariumGrid(bb) {
+    const z = 13, n = Math.pow(2, z);
+    const tx = (lon) => (lon + 180) / 360 * n, ty = (lat) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n; };
+    const X0 = Math.floor(tx(bb[0])), X1 = Math.floor(tx(bb[2])), Y0 = Math.floor(ty(bb[3])), Y1 = Math.floor(ty(bb[1])), tiles = {};
+    for (let X = X0; X <= X1; X++) for (let Y = Y0; Y <= Y1; Y++) {
+      const r = await fetch('https://s3.amazonaws.com/elevation-tiles-prod/terrarium/' + z + '/' + X + '/' + Y + '.png');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const bmp = await createImageBitmap(await r.blob()), cv = document.createElement('canvas'); cv.width = cv.height = 256;
+      const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(bmp, 0, 0); const d = cx.getImageData(0, 0, 256, 256).data, el = new Float32Array(65536);
+      for (let i = 0; i < 65536; i++) el[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768;
+      tiles[X + '/' + Y] = el;
+    }
+    const px = (X, Y) => { const t = tiles[Math.floor(X / 256) + '/' + Math.floor(Y / 256)]; return t ? t[(Y - Math.floor(Y / 256) * 256) * 256 + (X - Math.floor(X / 256) * 256)] : NaN; };
+    const cs = 0.00006, nx = Math.ceil((bb[2] - bb[0]) / cs), ny = Math.ceil((bb[3] - bb[1]) / cs), data = new Float32Array(nx * ny);
+    for (let iy = 0; iy < ny; iy++) {
+      const lat = bb[1] + (ny - iy - 0.5) * cs, wy = ty(lat) * 256 - 0.5, y0 = Math.floor(wy), fy = wy - y0;
+      for (let ix = 0; ix < nx; ix++) {
+        const wx = tx(bb[0] + (ix + 0.5) * cs) * 256 - 0.5, x0 = Math.floor(wx), fx = wx - x0;
+        const a = px(x0, y0), b = px(x0 + 1, y0), c = px(x0, y0 + 1), d2 = px(x0 + 1, y0 + 1), v = (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d2 * fx) * fy;
+        data[iy * nx + ix] = v === v ? v : -9999;
+      }
+    }
+    return { nx: nx, ny: ny, x0: bb[0], y0: bb[1], cs: cs, data: data, nd: -9999, src: 'AWS' };
   }
   function mdtSample(lon, lat) {
     const g = mdt; if (!g) return null;
@@ -1102,7 +1618,7 @@ details>*:not(summary){margin-bottom:6px}
       } catch (e) { /* sin modelo global */ }
       const id = cx.getImageData(0, 0, 256, 256), dd = id.data;
       if (!ok) for (let i = 0; i < dd.length; i += 4) { dd[i] = 128; dd[i + 1] = 0; dd[i + 2] = 0; dd[i + 3] = 255; }
-      if (mdt) {
+      if (mdt && mdt.src !== 'AWS') {
         const n = Math.pow(2, z);
         const lon0 = x / n * 360 - 180, lon1 = (x + 1) / n * 360 - 180;
         if (lon1 >= mdt.x0 && lon0 <= mdt.x0 + mdt.nx * mdt.cs) {
@@ -1137,10 +1653,10 @@ details>*:not(summary){margin-bottom:6px}
     let msg = '', changed = false;
     if (!mdt || mdtBox !== key) {
       toast('Descargando MDT del CNIG…', 20000);
-      try { mdt = await fetchMDT(bb); mdtBox = key; msg = 'Relieve 3D con MDT del CNIG (' + (mdt.src.indexOf('_5') > 0 ? '5 m' : '25 m') + ').'; }
+      try { mdt = await fetchMDT(bb); mdtBox = key; msg = mdt.src === 'AWS' ? 'Relieve con modelo global (~30 m): el MDT del CNIG falló (' + (mdt.warn || '') + ')' : 'Relieve 3D con MDT del CNIG (' + (mdt.src.indexOf('_5') > 0 ? '5 m' : '25 m') + ').'; }
       catch (e) { mdt = null; mdtBox = null; msg = 'MDT del CNIG no disponible (' + e.message + '). Se usa el modelo global.'; }
       demCache.clear(); changed = true;
-    } else msg = 'Relieve 3D con MDT del CNIG.';
+    } else msg = mdt.src === 'AWS' ? 'Relieve con modelo global (~30 m). CNIG: ' + (mdt.warn || '') : 'Relieve 3D con MDT del CNIG.';
     if (my !== tok3d || !on3d) return;            // el usuario ya volvió a 2D
     registerMDT();
     if (changed && map.getSource('dem')) { if (map.getTerrain()) map.setTerrain(null); if (map.getLayer('hs')) map.removeLayer('hs'); map.removeSource('dem'); }
@@ -1201,7 +1717,7 @@ details>*:not(summary){margin-bottom:6px}
   /* ---------- economía ---------- */
   function econ() {
     const rows = []; let cost = 0, inc = 0;
-    const sx = finca.params.sx, sy = finca.params.sy;
+    const sx = finca.params.sx, sy = finca.params.pattern === 'tres' ? sx * 0.8660254 : finca.params.sy;
     Object.keys(res.counts).forEach((sp) => {
       const n = res.counts[sp], e = finca.econ.sp[sp] || {}, ha = n * sx * sy / 10000;
       const c = n * ((+e.planta || 0) + (+finca.econ.coste || 0)), i = ha * (+e.rend || 0) * (+e.precio || 0);
@@ -1238,9 +1754,9 @@ details>*:not(summary){margin-bottom:6px}
     const fm = ferradoM2();
     $('#m-ferr').textContent = fm && st.area ? (st.area / fm).toFixed(1) : '—';
     $('#m-trees').textContent = res.total;
-    ['counts', 'warns', 'econres'].forEach((id) => {
+    ['counts', 'warns', 'econres', 'econres2'].forEach((id) => {
       const el = $('#' + id); if (!el) return;
-      el.innerHTML = id === 'counts' ? countsHTML() : id === 'warns' ? warnsHTML() : econHTML();
+      el.innerHTML = id === 'counts' ? countsHTML() : id === 'warns' ? warnsHTML() : id === 'econres2' ? (() => { try { return econ2HTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : econHTML();
     });
   }
 
@@ -1270,6 +1786,7 @@ details>*:not(summary){margin-bottom:6px}
     const R = runs(), arbSel = (sel) => ARB().map((x) => '<option value="' + x[0] + '"' + (x[0] === sel ? ' selected' : '') + '>' + esc(x[1]) + '</option>').join('');
     return '<div class="muted">' + R.length + ' lindero' + (R.length === 1 ? '' : 's') + ' (cada tramo continuo con el mismo tipo es uno solo). Usa «Definir tramo» para marcar en el mapa dónde está el río, la pista, la carretera o el vecino.</div>' +
       '<button class="btn" data-act="tramo">&#x2702;&#xFE0F; Definir tramo en el mapa</button>' +
+      '<button class="btn sec" data-act="auto-lind">&#x1F916; Clasificar linderos automáticamente (SIGPAC + OpenStreetMap)</button>' +
       '<div class="g2"><div><label>Árbol en TODOS los límites</label><select data-global="arbol"><option value="">— elegir —</option>' + arbSel(edgeArb(finca.edges[0]) === 'euc' && finca.edges.every((x) => !x.franja) ? 'euc' : '') + '</select></div>' +
       '<div><label>Filas de frondosas en el límite</label><input type="number" step="1" min="0" inputmode="numeric" data-bind="params.rows" value="' + val(finca.params.rows) + '"></div></div>' +
       R.map((r, ri) => {
@@ -1282,42 +1799,76 @@ details>*:not(summary){margin-bottom:6px}
       }).join('');
   }
 
+  let angData = null;
+  function angChartHTML() {
+    if (!angData) return '<div class="muted">Calcula cuántos árboles caben con cada ángulo (mejor posición para cada uno). Toca el gráfico para fijar un ángulo.</div>';
+    const pts = angData.pts, W = 300, Hh = 120, mx = angData.maxA;
+    let lo = Infinity, hi = -Infinity, best = pts[0]; pts.forEach((q) => { lo = Math.min(lo, q.total); hi = Math.max(hi, q.total); if (q.total > best.total) best = q; });
+    const pad = Math.max(1, (hi - lo) * 0.1); lo -= pad; hi += pad;
+    const X = (a) => (a / mx * (W - 20) + 14).toFixed(1), Y = (t) => (Hh - 16 - (t - lo) / (hi - lo) * (Hh - 28)).toFixed(1);
+    const cur = ((finca.params.angle % mx) + mx) % mx, d = pts.map((q, i) => (i ? 'L' : 'M') + X(q.a) + ',' + Y(q.total)).join('');
+    const near = pts.reduce((b2, q) => (Math.abs(q.a - cur) < Math.abs(b2.a - cur) ? q : b2), pts[0]);
+    return '<svg viewBox="0 0 ' + W + ' ' + Hh + '" data-act="angpick" data-max="' + mx + '" style="width:100%;background:#fafafa;border:1px solid #ddd;border-radius:6px;touch-action:manipulation"><path d="' + d + '" fill="none" stroke="#1e88e5" stroke-width="1.6"/>' +
+      '<line x1="' + X(cur) + '" y1="4" x2="' + X(cur) + '" y2="' + (Hh - 14) + '" stroke="#d81b60" stroke-dasharray="3,2"/><circle cx="' + X(best.a) + '" cy="' + Y(best.total) + '" r="3.5" fill="#2e7d32"/>' +
+      '<text x="14" y="' + (Hh - 3) + '" font-size="9" fill="#555">0°</text><text x="' + (W - 6) + '" y="' + (Hh - 3) + '" font-size="9" fill="#555" text-anchor="end">' + mx + '°</text><text x="' + (W - 6) + '" y="10" font-size="9" fill="#555" text-anchor="end">' + Math.round(hi) + '</text><text x="' + (W - 6) + '" y="' + (Hh - 18) + '" font-size="9" fill="#555" text-anchor="end">' + Math.round(lo) + '</text></svg>' +
+      '<div class="muted">Máximo estimado: <b>' + best.total + '</b> árboles a <b>' + best.a + '°</b> (punto verde) · ángulo actual ' + (+finca.params.angle).toFixed(1) + '° (línea roja): ~' + near.total + ' (' + (near.total - best.total) + '). Diferencia entre el mejor y el peor ángulo: ' + (best.total - Math.round(lo + pad)) + ' árboles. Estimación rápida; el nº exacto es el del panel.</div>';
+  }
+  function utm29(lon, lat) {
+    const a = 6378137, f = 1 / 298.257222101, e2 = f * (2 - f), ep = e2 / (1 - e2), D = Math.PI / 180, ph = lat * D, la = (lon + 9) * D;
+    const N = a / Math.sqrt(1 - e2 * Math.sin(ph) ** 2), T = Math.tan(ph) ** 2, Cc = ep * Math.cos(ph) ** 2, A = la * Math.cos(ph);
+    const M0 = a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 ** 3 / 256) * ph - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * ph) + (15 * e2 * e2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * ph) - (35 * e2 ** 3 / 3072) * Math.sin(6 * ph));
+    const x = 0.9996 * N * (A + (1 - T + Cc) * A ** 3 / 6 + (5 - 18 * T + T * T + 72 * Cc - 58 * ep) * A ** 5 / 120) + 500000;
+    const y = 0.9996 * (M0 + N * Math.tan(ph) * (A * A / 2 + (5 - T + 9 * Cc + 4 * Cc * Cc) * A ** 4 / 24 + (61 - 58 * T + T * T + 600 * Cc - 330 * ep) * A ** 6 / 720));
+    return [x, y];
+  }
+  const fmtCoord = (v, d) => v.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
   function tabMatriz() {
     const p = finca.params;
     const STEP = 0.25;
     const inp = (k, lab, step) => '<div><label>' + lab + '</label><div class="stp"><button class="mini" data-act="step" data-k="' + k + '" data-d="-' + STEP + '">&#x2212;</button><input type="number" step="' + (step || STEP) + '" inputmode="decimal" data-bind="params.' + k + '" value="' + val(p[k]) + '"><button class="mini" data-act="step" data-k="' + k + '" data-d="' + STEP + '">+</button></div></div>';
     const arbs = finca.edges.map(edgeArb), uniq = arbs.filter((x, i) => arbs.indexOf(x) === i);
     const cur = uniq.length === 1 ? uniq[0] : 'mixto';
-    const plant = '<div><label>Plantación</label><select data-global="arbol">' +
+    const plant = '<div><label>Árbol en los límites (franja)</label><select data-global="arbol">' +
       (cur === 'mixto' ? '<option value="" selected>Mixta (distinta por lindero)</option>' : '') +
-      ARB().map((x) => '<option value="' + x[0] + '"' + (x[0] === cur ? ' selected' : '') + '>' + (x[0] === 'euc' ? 'Solo eucalipto (sin frondosas)' : 'Eucalipto + ' + esc(x[1]).toLowerCase() + ' en los límites') + '</option>').join('') + '</select></div>';
+      ARB().filter((x) => x[0] !== p.core).map((x) => '<option value="' + x[0] + '"' + (x[0] === cur ? ' selected' : '') + '>' + (x[0] === 'euc' ? 'Sin franja: todo el mismo árbol' : 'Franja de ' + esc(x[1]).toLowerCase()) + '</option>').join('') + '</select></div>';
     const man = p.opt === 'manual';
     const optSel = '<div><label>Orientación y posición de la matriz</label><select data-bind="params.opt">' +
       '<option value="auto"' + (p.opt === 'auto' ? ' selected' : '') + '>Automática: máximo de árboles</option>' +
       '<option value="fijo"' + (p.opt === 'fijo' ? ' selected' : '') + '>Ángulo fijo; posición automática (máx.)</option>' +
       '<option value="manual"' + (p.opt === 'manual' ? ' selected' : '') + '>Manual (ángulo y desplazamiento)</option></select></div>';
-    return '<div class="g2"><div><label>Eucalipto</label><select data-bind="params.core">' + optsObj({ nitens: S.nitens, globulus: S.globulus }, p.core, (v) => v.name) + '</select></div>' + inp('rows', 'Filas de frondosas en límite', 1) + '</div>' +
+    return '<div class="g2"><div><label>Árbol de la plantación</label><select data-bind="params.core">' + coreOpts(p.core) + '</select></div>' + inp('rows', 'Filas de franja en el límite', 1) + '</div>' +
       plant +
-      '<div class="g2">' + inp('sx', 'Marco X (m)') + inp('sy', 'Marco Y (m)') + '</div>' +
+      '<div><label>Disposición</label><select data-bind="params.pattern">' +
+      '<option value="cuad"' + (p.pattern === 'cuad' ? ' selected' : '') + '>Cuadrícula / rectángulo (Marco X × Marco Y)</option>' +
+      '<option value="tres"' + (p.pattern === 'tres' ? ' selected' : '') + '>Tresbolillo (triángulos equiláteros: más árboles con la misma distancia)</option>' +
+      '<option value="curvas"' + (p.pattern === 'curvas' ? ' selected' : '') + '>Curvas de nivel (filas siguiendo el relieve; necesita MDT)</option></select></div>' +
+      (p.pattern === 'tres' ? '<div class="g2">' + inp('sx', 'Distancia entre árboles (m)') + '<div><label>Distancia entre filas (m)</label><input value="' + (p.sx * 0.8660254).toFixed(2) + '" disabled></div></div>'
+        : p.pattern === 'curvas' ? '<div class="g2">' + inp('sx', 'Distancia en la fila (m)') + inp('sy', 'Separación entre filas (m, horizontal media)') + '</div>'
+        : '<div class="g2">' + inp('sx', 'Marco X (m)') + inp('sy', 'Marco Y (m)') + '</div>') +
+      (p.pattern === 'curvas' ? '<div class="muted">' + (slopeGrid ? 'Las filas siguen líneas de igual cota, separadas por el desnivel medio equivalente a «Separación entre filas».' : 'Sin MDT todavía: pulsa «Cargar MDT» más abajo; mientras tanto se usa la cuadrícula.') + '</div>' : '') +
       optSel +
       '<div class="g2"><div><label>Ángulo (°)' + (p.opt === 'auto' ? ' · óptimo calculado' : '') + '</label><input type="number" step="0.5" inputmode="decimal" data-bind="params.angle" value="' + val(p.angle) + '"' + (p.opt === 'auto' ? ' disabled' : '') + '></div><div></div></div>' +
       (man ? '<div class="g2">' + inp('shU', 'Desplazamiento X (m)') + inp('shV', 'Desplazamiento Y (m)') + '</div>' +
         '<div class="g2"><button class="btn sec" data-act="anchor-gps">Anclar en mi posición</button><button class="btn sec" data-act="anchor-map">Anclar tocando el mapa</button></div>' +
         (p.anchor ? '<button class="btn danger" data-act="anchor-clear">Quitar anclaje</button>' : '') : '') +
-      '<details open><summary>Árboles a mano (' + (finca.manual.length) + ' añadidos · ' + (finca.removed.length) + ' quitados)</summary>' +
-      '<div class="g2"><button class="btn" data-act="tt-add">&#xFF0B; Añadir árboles</button><button class="btn sec" data-act="tt-del">&#xFF0D; Quitar árboles</button></div>' +
-      '<div class="g2e"><div><label>Distancia mínima entre árboles (m)</label><div class="stp"><button class="mini" data-act="step" data-k="dmin" data-d="-0.25">&#x2212;</button><input type="number" step="0.25" inputmode="decimal" data-bind="params.dmin" value="' + val(p.dmin) + '"><button class="mini" data-act="step" data-k="dmin" data-d="0.25">+</button></div></div><button class="btn" data-act="fill" style="width:auto;align-self:end">Rellenar huecos</button></div>' +
-      '<button class="btn danger" data-act="clear-manual">Borrar árboles manuales/rellenos y restaurar quitados</button></details>' +
+      '<details open><summary>Editar árboles (' + (finca.manual.length) + ' manuales · ' + (finca.removed.length) + ' quitados)</summary>' +
+      '<button class="btn" data-act="tt-edit">&#x270E; Seleccionar · cambiar tipo · eliminar · mover</button>' +
+      '<div class="g2"><button class="btn sec" data-act="tt-add">&#xFF0B; Añadir árboles</button><button class="btn sec" data-act="fill">&#x271A; Ver huecos y rellenar</button></div>' +
+      '<div class="g2e"><div><label>Distancia mínima entre árboles (m)</label><div class="stp"><button class="mini" data-act="step" data-k="dmin" data-d="-0.25">&#x2212;</button><input type="number" step="0.25" inputmode="decimal" data-bind="params.dmin" value="' + val(p.dmin) + '"><button class="mini" data-act="step" data-k="dmin" data-d="0.25">+</button></div></div><div></div></div>' +
+      '<button class="btn danger" data-act="clear-manual">Borrar cambios manuales y restaurar la matriz</button></details>' +
+      '<details><summary>Ángulo ↔ nº de árboles</summary><div id="angchart">' + angChartHTML() + '</div><button class="btn sec" data-act="angcurve">Calcular gráfico</button></details>' +
       '<div class="g2e"><div><label>Pendiente máxima plantable (%) · 0 = sin límite</label><input type="number" step="1" min="0" inputmode="numeric" data-bind="params.slopeMax" value="' + val(p.slopeMax) + '"></div><button class="btn sec" data-act="mdt" style="width:auto;align-self:end">Cargar MDT</button></div>' +
-      '<div class="muted" id="slopeinfo">' + (slopeStat ? 'Relieve (MDT CNIG): cota ' + Math.round(slopeStat.zmin) + '–' + Math.round(slopeStat.zmax) + ' m · pendiente media ' + slopeStat.mean.toFixed(0) + ' %, máx. ' + slopeStat.max.toFixed(0) + ' %' + (p.slopeMax > 0 ? ' · ' + slopeStat.over.toFixed(0) + ' % de la superficie supera el límite' : '') : 'Sin datos de relieve todavía (pulsa «Cargar MDT»).') + '</div>' +
+      '<button class="btn sec" data-act="slopemap">' + (slopeOn ? 'Ocultar' : 'Ver') + ' mapa de pendientes' + '</button>' +
+      '<div class="muted" id="slopeinfo">' + (slopeStat ? (mdt && mdt.src === 'AWS' ? 'Relieve (modelo global ~30 m; CNIG falló: ' + esc(mdt.warn || '') + '): cota ' : 'Relieve (MDT CNIG): cota ') + Math.round(slopeStat.zmin) + '–' + Math.round(slopeStat.zmax) + ' m · pendiente media ' + slopeStat.mean.toFixed(0) + ' %, máx. ' + slopeStat.max.toFixed(0) + ' %' + (p.slopeMax > 0 ? ' · ' + slopeStat.over.toFixed(0) + ' % de la superficie supera el límite' : '') + ' · superficie real sobre el terreno ' + (slopeStat.surf / 1e4).toFixed(2) + ' ha (+' + ((slopeStat.surf / slopeStat.flat - 1) * 100).toFixed(0) + ' % sobre la proyectada); a cinta, ' + fmtM(p.sx) + ' en planta ≈ ' + fmtM(p.sx * Math.sqrt(1 + Math.pow(slopeStat.mean / 100, 2))) + ' sobre el terreno; ladera orientada al ' + aspectName(slopeStat.asp) : 'Sin datos de relieve todavía (pulsa «Cargar MDT»).') + '</div>' +
       '<div id="counts"></div>' +
       '<details><summary>Exclusiones y subzonas</summary>' +
       '<div class="muted">Puedes añadir tantas exclusiones como necesites (caminos de servicio a otros montes, líneas, zonas). La distancia es a cada lado del eje.</div>' +
       '<div class="g2e"><button class="btn sec" data-act="excl-camino">Camino de servicio</button><input id="bufc" type="number" step="0.25" value="3" min="0.5" style="width:70px" title="Distancia a cada lado del eje (m)"></div>' +
       '<div class="g2e"><button class="btn sec" data-act="excl-line">Línea eléctrica / otra</button><input id="buf" type="number" step="0.5" value="15" min="1" style="width:70px" title="Distancia a cada lado (m)"></div>' +
       '<button class="btn sec" data-act="excl-poly">Zona excluida (polígono)</button>' +
+      '<div class="g2"><button class="btn sec" data-act="excl-saca">Pista de saca</button><button class="btn sec" data-act="excl-carga">Cargadero</button></div>' +
       '<div class="g2e"><select id="zsp">' + optsObj(S, 'castano', (v) => v.name) + '</select><button class="btn sec" style="width:auto" data-act="subzona">Dibujar subzona</button></div>' +
-      (finca.exclusions.map((e, i) => '<div class="sp"><span style="flex:1">' + (e.kind === 'line' ? (e.tipo === 'camino' ? 'Camino de servicio' : 'Línea') : 'Zona excluida') + ' #' + (i + 1) + '</span>' + (e.kind === 'line' ? '<input type="number" step="0.25" min="0" style="width:64px" data-bind="exclusions.' + i + '.buffer" value="' + val(e.buffer) + '"> m ' : '') + '<button class="mini" data-act="del-excl" data-i="' + i + '">borrar</button></div>').join('')) +
+      (finca.exclusions.map((e, i) => '<div class="sp"><span style="flex:1">' + (e.kind === 'line' ? (e.tipo === 'camino' ? 'Camino de servicio' : e.tipo === 'saca' ? 'Pista de saca' : 'Línea') : (e.tipo === 'cargadero' ? 'Cargadero' : 'Zona excluida')) + ' #' + (i + 1) + '</span>' + (e.kind === 'line' ? '<input type="number" step="0.25" min="0" style="width:64px" data-bind="exclusions.' + i + '.buffer" value="' + val(e.buffer) + '"> m ' : '') + '<button class="mini" data-act="del-excl" data-i="' + i + '">borrar</button></div>').join('')) +
       (finca.subzonas.map((z, i) => '<div class="sp"><span class="dot" style="background:' + S[z.sp].color + '"></span><span style="flex:1">Subzona ' + esc(S[z.sp].name) + ' #' + (i + 1) + '</span><button class="mini" data-act="del-zona" data-i="' + i + '">borrar</button></div>').join(''));
   }
 
@@ -1332,7 +1883,14 @@ details>*:not(summary){margin-bottom:6px}
       '<details><summary>Economía (editable; vacío = sin dato)</summary>' +
       '<div><label>Coste de plantación por árbol, mano de obra (€)</label><input type="number" step="any" inputmode="decimal" data-bind="econ.coste" value="' + val(finca.econ.coste) + '"></div>' +
       '<div style="overflow-x:auto"><table><tr><th>Especie</th><th>€/planta</th><th>m³/ha</th><th>€/m³</th><th>Destino</th></tr>' + Object.keys(S).map(row).join('') + '</table></div></details>' +
-      '<div id="econres"></div>';
+      '<div id="econres"></div>' +
+      '<details><summary>Presupuesto, volumen, VAN/TIR</summary>' +
+      '<div class="g2"><div><label>Preparación del terreno (€/ha)</label><input type="number" step="any" inputmode="decimal" data-bind="econ.prep" value="' + val(finca.econ.prep) + '"></div><div><label>Replanteo (€/ha)</label><input type="number" step="any" inputmode="decimal" data-bind="econ.repl" value="' + val(finca.econ.repl) + '"></div></div>' +
+      '<div class="g2"><div><label>Mantenimiento (€/ha/año)</label><input type="number" step="any" inputmode="decimal" data-bind="econ.mant" value="' + val(finca.econ.mant) + '"></div><div><label>Reposición de marras (%)</label><input type="number" step="any" inputmode="decimal" data-bind="econ.marras" value="' + val(finca.econ.marras) + '" placeholder="8"></div></div>' +
+      '<div class="g2"><div><label>Tasa de descuento (%)</label><input type="number" step="any" inputmode="decimal" data-bind="econ.tasa" value="' + val(finca.econ.tasa) + '" placeholder="4"></div><div></div></div>' +
+      '<div style="overflow-x:auto"><table><tr><th>Especie</th><th>Turno (años)</th></tr>' + Object.keys(S).map((sp) => '<tr><td>' + esc(S[sp].name) + '</td><td><input type="number" step="1" inputmode="numeric" data-bind="econ.sp.' + sp + '.turno" value="' + val(finca.econ.sp[sp].turno) + '" placeholder="' + (TURNO[sp] || 25) + '"></td></tr>').join('') + '</table></div>' +
+      '<div id="econres2"></div>' +
+      '<button class="btn sec" data-act="scen">Comparar escenarios (especie, tresbolillo)</button><div id="scenres"></div></details>';
   }
 
   function tabNorma() {
@@ -1356,7 +1914,7 @@ details>*:not(summary){margin-bottom:6px}
   $('#tabs').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.tab === 'medir') { if (onList) return; if (ms) endMeasure(); else startMeasure(); return; }
-    if (ms) endMeasure(); if (tt) endTrees(); if (tr) endTramo();
+    if (ms) endMeasure(); if (tt) endTrees(); if (tr) endTramo(); if (st) endStake(); if (nt) endNotes();
     if (sheetOpen && tab === b.dataset.tab) closeSheet(); else openSheet(b.dataset.tab);
   });
   $('#sheet-x').onclick = closeSheet;
@@ -1412,6 +1970,37 @@ details>*:not(summary){margin-bottom:6px}
     }
   });
 
+  /* ---------- deshacer / rehacer ---------- */
+  let hist = [], histI = -1, histSkip = false;
+  function histSnap() {
+    if (histSkip || !finca || !finca.ring) return;
+    const s = JSON.stringify(finca); if (hist[histI] === s) return;
+    hist = hist.slice(0, histI + 1); hist.push(s); if (hist.length > 40) hist.shift(); histI = hist.length - 1;
+  }
+  function histRestore() {
+    histSkip = true; try { const id = finca.id; finca = migrate(JSON.parse(hist[histI])); finca.id = id; optCache[finca.id] = null; recalc(); renderTab(); } finally { histSkip = false; }
+  }
+  function undo() { if (histI <= 0) { toast('Nada que deshacer'); return; } histI--; histRestore(); toast('Deshecho (' + histI + '/' + (hist.length - 1) + ')', 1800); }
+  function redo() { if (histI >= hist.length - 1) { toast('Nada que rehacer'); return; } histI++; histRestore(); toast('Rehecho', 1800); }
+  $('#btn-undo').onclick = undo; $('#btn-redo').onclick = redo;
+  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && !onList && !/INPUT|SELECT|TEXTAREA/.test((e.target.tagName || ''))) { if (e.key === 'z') { e.preventDefault(); undo(); } else if (e.key === 'y') { e.preventDefault(); redo(); } } });
+  /* ---------- copia de seguridad ---------- */
+  function backupAll() {
+    flush();
+    const d = new Date().toISOString().slice(0, 10), n = Object.keys(store.fincas).length;
+    download('plantfinc-copia-' + d + '.json', JSON.stringify({ app: 'plantfinc', v: 1, fecha: d, store: { fincas: store.fincas, norm: store.norm, center: store.center, owner: store.owner || null } }), 'application/json');
+    toast('Copia de seguridad guardada (' + n + ' fincas)', 4000);
+  }
+  function restoreAll(txt) {
+    let j; try { j = JSON.parse(txt); } catch (e) { toast('Archivo no válido'); return false; }
+    if (!j || j.app !== 'plantfinc' || !j.store || !j.store.fincas) return false;
+    const ids = Object.keys(j.store.fincas);
+    if (!confirm('Restaurar copia con ' + ids.length + ' fincas. Las del mismo identificador se sustituirán. ¿Continuar?')) return true;
+    ids.forEach((id) => { store.fincas[id] = j.store.fincas[id]; });
+    if (j.store.owner && !store.owner) store.owner = j.store.owner;
+    try { localStorage.setItem(LS, JSON.stringify(store)); } catch (er) { toast('No hay espacio para restaurar'); return true; }
+    if (onList) renderList(); toast('Copia restaurada: ' + ids.length + ' fincas', 4000); return true;
+  }
   function download(name, text, type) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: type })); a.download = name;
@@ -1421,14 +2010,35 @@ details>*:not(summary){margin-bottom:6px}
 
   function exportGeo() {
     if (!prep) { toast('No hay datos'); return; }
-    const fc = { type: 'FeatureCollection', features: [polyFeature(finca.ring, { name: finca.name, tipo: 'finca' })].concat(
-      res.trees.map((t) => ({ type: 'Feature', properties: { especie: S[t.sp].name, color: S[t.sp].color }, geometry: { type: 'Point', coordinates: prep.pj.toLL(t.x, t.y) } }))) };
-    download('plantfinc-' + slug(finca.name) + '.geojson', JSON.stringify(fc), 'application/geo+json');
+    const pj = prep.pj, p = finca.params, st = PF.stats(finca.ring), F = [], ring = finca.ring, n = ring.length, fm = ferradoM2();
+    F.push(polyFeature(ring, { tipo: 'finca', nombre: finca.name, concello: C[finca.concello].name, superficie_ha: +(st.area / 1e4).toFixed(4), ferrados: fm ? +(st.area / fm).toFixed(2) : null, perimetro_m: +st.perimeter.toFixed(1), arboles: res.total, marco_x_m: p.sx, marco_y_m: p.sy, angulo_deg: +(+p.angle).toFixed(2), planta_nucleo: S[p.core].name }));
+    runs().forEach((r, ri) => {
+      const cs = r.edges.map((i) => ring[i]); cs.push(ring[(r.edges[r.edges.length - 1] + 1) % n]);
+      const e0 = finca.edges[r.edges[0]], d = (norm[e0.tipo] || {})[PF.groupKey(p.core)];
+      F.push({ type: 'Feature', properties: { tipo: 'lindero', n: ri + 1, clase: (L[e0.tipo] || L.libre).label, vecino: e0.vecino || null, longitud_m: +r.len.toFixed(2), distancia_min_m: d == null ? null : d, franja: e0.franja ? S[e0.especie].name : null }, geometry: { type: 'LineString', coordinates: cs } });
+    });
+    const idx = res.trees.map((t) => ({ i: t.i, j: t.j, on: !t.man && t.i !== undefined }));
+    const rk = (key) => { const s = Array.from(new Set(idx.filter((q) => q.on).map((q) => q[key]))).sort((a, b) => a - b); const m = {}; s.forEach((v, k) => { m[v] = k + 1; }); return m; };
+    const rows = rk('j'), cols = rk('i');
+    res.trees.forEach((t, k) => {
+      const ll = pj.toLL(t.x, t.y), u = utm29(ll[0], ll[1]), q = idx[k];
+      F.push({ type: 'Feature', properties: { tipo: 'arbol', id: k + 1, especie: S[t.sp].name, color: S[t.sp].color, manual: t.man ? 1 : 0, estado: (finca.status || {})[tkey(t)] || 'pendiente', fila: q.on ? rows[q.j] : null, columna: q.on ? cols[q.i] : null, x_utm29: +u[0].toFixed(2), y_utm29: +u[1].toFixed(2) }, geometry: { type: 'Point', coordinates: ll } });
+    });
+    (finca.exclusions || []).forEach((e, i) => {
+      if (e.kind === 'poly') F.push(polyFeature(e.coords, { tipo: 'exclusion', n: i + 1 }));
+      else { F.push({ type: 'Feature', properties: { tipo: 'exclusion_' + (e.tipo || 'linea'), n: i + 1, distancia_a_cada_lado_m: +e.buffer }, geometry: { type: 'LineString', coordinates: e.coords } }); }
+    });
+    (finca.cotas || []).forEach((c) => F.push({ type: 'Feature', properties: { tipo: 'cota', longitud_m: +distLL(c.a, c.b).toFixed(2) }, geometry: { type: 'LineString', coordinates: [c.a, c.b] } }));
+    (finca.notes || []).forEach((n, i) => F.push({ type: 'Feature', properties: { tipo: 'nota', n: i + 1, texto: n.txt, foto: n.photo ? 1 : 0 }, geometry: { type: 'Point', coordinates: n.ll } }));
+    (finca.refs || []).forEach((r, i) => { const u = utm29(r.ll[0], r.ll[1]); F.push({ type: 'Feature', properties: { tipo: 'referencia', nombre: 'R' + (i + 1), x_utm29: +u[0].toFixed(2), y_utm29: +u[1].toFixed(2) }, geometry: { type: 'Point', coordinates: r.ll } }); });
+    download('plantfinc-' + slug(finca.name) + '.geojson', JSON.stringify({ type: 'FeatureCollection', name: finca.name, features: F }), 'application/geo+json');
+    toast('GeoJSON exportado: finca, linderos, ' + res.total + ' árboles, exclusiones, cotas y referencias', 4500);
   }
   function fileImport(e) {
     const f = e.target.files && e.target.files[0]; if (!f) return;
     const rd = new FileReader();
     rd.onload = () => {
+      try { const j0 = JSON.parse(rd.result); if (j0 && j0.app === 'plantfinc' && j0.store) { restoreAll(rd.result); return; } } catch (er0) { /* */ }
       try { setRing(PF.ringFromGeoJSON(JSON.parse(rd.result)), f.name.replace(/\.[^.]+$/, '')); toast('Finca importada'); }
       catch (err) { toast('Importación fallida: ' + err.message, 6000); }
     };
@@ -1472,9 +2082,29 @@ details>*:not(summary){margin-bottom:6px}
         break;
       case 'tramo': startTramo(); break;
       case 'step': { const k = b.dataset.k, d = +b.dataset.d, cur = num(finca.params[k], 0); let v = Math.round((cur + d) / 0.25) * 0.25; if (k === 'sx' || k === 'sy' || k === 'dmin') v = Math.max(0.5, v); if (k === 'rows') v = Math.max(0, Math.round(cur + Math.sign(d))); finca.params[k] = +v.toFixed(2); recalc(); renderTab(); break; }
+      case 'angcurve': if (!prep) break; toast('Calculando ángulos…', 6000); setTimeout(() => { try { angData = PF.angleCurve(prep, finca, 2); } catch (er) { fail('ángulos', er); } const el = $('#angchart'); if (el) el.innerHTML = angChartHTML(); toast('Gráfico calculado', 1500); }, 40); break;
+      case 'angpick': { if (!angData) break; const r = b.getBoundingClientRect(), frac = Math.max(0, Math.min(1, ((e.clientX - r.left) / r.width * 300 - 14) / 280)), ang = Math.round(frac * angData.maxA); finca.params.opt = 'fijo'; finca.params.angle = ang; recalc(); renderTab(); toast('Ángulo fijado a ' + ang + '° → ' + res.total + ' árboles', 3500); break; }
+      case 'slopemap': toggleSlopeMap(); break;
+      case 'excl-saca': startDraw('excl-saca'); break;
+      case 'excl-carga': startDraw('excl-carga'); break;
+      case 'auto-lind': autoLinderos(); break;
+      case 'scen': runScenarios(); break;
+      case 'draft': openDraft(); break;
+      case 'offline': downloadOffline(); break;
+      case 'exp-gpx': exportGPX(); break;
+      case 'exp-kml': exportKML(); break;
+      case 'exp-dxf': exportDXF(); break;
+      case 'exp-csv': exportCSV(); break;
+      case 'stake': startStake(); break;
+      case 'notes': startNotes(); break;
+      case 'undo': undo(); break;
+      case 'redo': redo(); break;
+      case 'backup': backupAll(); break;
+      case 'restore': $('#file').click(); break;
       case 'tt-add': startTrees('add'); break;
-      case 'tt-del': startTrees('del'); break;
-      case 'fill': fillGaps(); break;
+      case 'tt-del': startTrees('sel'); break;
+      case 'tt-edit': startTrees('sel'); break;
+      case 'fill': startTrees('fill'); break;
       case 'clear-manual': finca.manual = []; finca.removed = []; recalc(); renderTab(); toast('Árboles manuales y quitados restaurados'); break;
       case 'recalc': recalc(); break;
       case 'resimp': if (!finca.ringOrig) { toast('Vuelve a elegir la parcela en SIGPAC'); break; } finca.maxEdges = Math.max(4, Math.min(300, Math.round(num(finca.maxEdges, 80)))); finca.ring = simplifyRing(finca.ringOrig, finca.maxEdges); finca.edges = []; PF.ensureEdges(finca); finca.params.anchor = null; openEdge = -1; recalc(); renderTab(); toast(finca.ring.length + ' vértices (se han reiniciado los linderos)'); break;
@@ -1622,7 +2252,7 @@ details>*:not(summary){margin-bottom:6px}
 
     /* ---- página: plano de replanteo ---- */
     const pj = prep.pj;
-    const utm29 = (lon, lat) => {
+    const utm29x = (lon, lat) => {
       const a = 6378137, f = 1 / 298.257222101, e2 = f * (2 - f), ep = e2 / (1 - e2), D = Math.PI / 180, ph = lat * D, la = (lon + 9) * D;
       const N = a / Math.sqrt(1 - e2 * Math.sin(ph) ** 2), T = Math.tan(ph) ** 2, Cc = ep * Math.cos(ph) ** 2, A = la * Math.cos(ph);
       const M0 = a * ((1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 ** 3 / 256) * ph - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * ph) + (15 * e2 * e2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * ph) - (35 * e2 ** 3 / 3072) * Math.sin(6 * ph));
@@ -1632,15 +2262,15 @@ details>*:not(summary){margin-bottom:6px}
     };
     const fm2 = (v) => fmtM(v);
     const pa = finca.params, th = (+pa.angle || 0) * Math.PI / 180, ca = Math.cos(th), sa = Math.sin(th), ax = prep.anchor[0], ay = prep.anchor[1];
+    const noCols = pa.pattern === 'tres' || pa.pattern === 'curvas';
     const lat = res.trees.map((t) => {
-      const dx = t.x - ax, dy = t.y - ay, u = dx * ca + dy * sa, v = -dx * sa + dy * ca, fi = (u - (+pa.shU || 0)) / pa.sx, fj = (v - (+pa.shV || 0)) / pa.sy;
-      const i = Math.round(fi), j = Math.round(fj), on = Math.abs(fi - i) * pa.sx < 0.03 && Math.abs(fj - j) * pa.sy < 0.03;
-      return { t: t, u: u, v: v, i: i, j: j, on: on };
+      const dx = t.x - ax, dy = t.y - ay, u = dx * ca + dy * sa, v = -dx * sa + dy * ca, on = !t.man && t.i !== undefined;
+      return { t: t, u: u, v: v, i: on ? t.i : 0, j: on ? t.j : 0, on: on };
     });
     const onL = lat.filter((q) => q.on), manualN = lat.length - onL.length;
     const rowsM = {}, colsM = {};
     onL.forEach((q) => { (rowsM[q.j] = rowsM[q.j] || []).push(q); (colsM[q.i] = colsM[q.i] || []).push(q); });
-    const rowKeys = Object.keys(rowsM).map(Number).sort((a, b) => a - b), colKeys = Object.keys(colsM).map(Number).sort((a, b) => a - b);
+    const rowKeys = Object.keys(rowsM).map(Number).sort((a, b) => a - b), colKeys = noCols ? [] : Object.keys(colsM).map(Number).sort((a, b) => a - b);
     const MH3 = land ? 148 : 188;
     const den3 = dens.find((d) => w * 1000 / d <= MW - 16 && h * 1000 / d <= MH3 - 16) || 50000, k3 = 1000 / den3;
     const X3 = (x) => ((MW - w * k3) / 2 + (x - minx) * k3), Y3 = (y) => ((MH3 - h * k3) / 2 + (maxy - y) * k3);
@@ -1650,7 +2280,7 @@ details>*:not(summary){margin-bottom:6px}
     r3 += '<path d="' + ring.map((p, i) => (i ? 'L' : 'M') + f1(X3(p[0])) + ',' + f1(Y3(p[1]))).join('') + 'Z" fill="#f7fbf2" stroke="none"/>';
     // líneas de filas y columnas (solo entre el primer y el último árbol)
     const lin = (a, b, col) => '<line x1="' + f1(X3(a.t.x)) + '" y1="' + f1(Y3(a.t.y)) + '" x2="' + f1(X3(b.t.x)) + '" y2="' + f1(Y3(b.t.y)) + '" stroke="' + col + '" stroke-width="0.12"/>';
-    rowKeys.forEach((j) => { const a = rowsM[j].slice().sort((p, q) => p.u - q.u); r3 += lin(a[0], a[a.length - 1], '#7e57c2'); });
+    rowKeys.forEach((j) => { const a = rowsM[j].slice().sort((p, q) => p.i - q.i); r3 += lin(a[0], a[a.length - 1], '#7e57c2'); });
     colKeys.forEach((i) => { const a = colsM[i].slice().sort((p, q) => p.v - q.v); r3 += lin(a[0], a[a.length - 1], '#26a69a'); });
     const rr3 = Math.max(0.3, Math.min(pa.sx, pa.sy) * k3 * 0.22);
     lat.forEach((q) => { r3 += '<circle cx="' + f1(X3(q.t.x)) + '" cy="' + f1(Y3(q.t.y)) + '" r="' + rr3.toFixed(2) + '" fill="' + S[q.t.sp].color + '"' + (q.on ? '' : ' stroke="#ef6c00" stroke-width="0.25"') + '/>'; });
@@ -1659,11 +2289,11 @@ details>*:not(summary){margin-bottom:6px}
     rl.forEach((r, ri) => { const i = r.label, p = ring[i], q = ring[(i + 1) % ring.length]; r3 += '<text x="' + f1((X3(p[0]) + X3(q[0])) / 2) + '" y="' + f1((Y3(p[1]) + Y3(q[1])) / 2) + '" font-size="3.6" font-weight="bold" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.7">L' + (ri + 1) + '</text>'; });
     // numeración de filas (F) y columnas (C): al inicio de cada línea, fuera hacia -u / -v
     const ux = ca, uy = sa, vx = -sa, vy = ca, off = 3.2 / k3;
-    rowKeys.forEach((j, n) => { if (n % lblStep && n !== rowKeys.length - 1) return; const a = rowsM[j].slice().sort((p, q) => p.u - q.u)[0]; r3 += '<text x="' + f1(X3(a.t.x - ux * off)) + '" y="' + f1(Y3(a.t.y - uy * off) + 1) + '" font-size="2.6" fill="#5e35b1" text-anchor="middle" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.5">F' + (n + 1) + '</text>'; });
+    rowKeys.forEach((j, n) => { if (n % lblStep && n !== rowKeys.length - 1) return; const a = rowsM[j].slice().sort((p, q) => p.i - q.i)[0]; r3 += '<text x="' + f1(X3(a.t.x - ux * off)) + '" y="' + f1(Y3(a.t.y - uy * off) + 1) + '" font-size="2.6" fill="#5e35b1" text-anchor="middle" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.5">F' + (n + 1) + '</text>'; });
     colKeys.forEach((i, n) => { if (n % lblStep && n !== colKeys.length - 1) return; const a = colsM[i].slice().sort((p, q) => p.v - q.v)[0]; r3 += '<text x="' + f1(X3(a.t.x - vx * off)) + '" y="' + f1(Y3(a.t.y - vy * off) + 1) + '" font-size="2.6" fill="#00796b" text-anchor="middle" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.5">C' + (n + 1) + '</text>'; });
     // cota del marco (primer par de árboles de la fila central y de la columna central)
     const midRow = rowsM[rowKeys[Math.floor(rowKeys.length / 2)]] || [];
-    if (midRow.length > 1) { const a = midRow.slice().sort((p, q) => p.u - q.u), p = a[0].t, q = a[1].t; r3 += '<line x1="' + f1(X3(p.x)) + '" y1="' + f1(Y3(p.y)) + '" x2="' + f1(X3(q.x)) + '" y2="' + f1(Y3(q.y)) + '" stroke="#d81b60" stroke-width="0.4"/><text x="' + f1((X3(p.x) + X3(q.x)) / 2 + 1) + '" y="' + f1((Y3(p.y) + Y3(q.y)) / 2 - 1.2) + '" font-size="3" fill="#d81b60" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + fm2(pa.sx) + '</text>'; }
+    if (midRow.length > 1) { const a = midRow.slice().sort((p, q) => p.i - q.i), p = a[0].t, q = a[1].t; r3 += '<line x1="' + f1(X3(p.x)) + '" y1="' + f1(Y3(p.y)) + '" x2="' + f1(X3(q.x)) + '" y2="' + f1(Y3(q.y)) + '" stroke="#d81b60" stroke-width="0.4"/><text x="' + f1((X3(p.x) + X3(q.x)) / 2 + 1) + '" y="' + f1((Y3(p.y) + Y3(q.y)) / 2 - 1.2) + '" font-size="3" fill="#d81b60" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + fm2(pa.sx) + '</text>'; }
     const midCol = colsM[colKeys[Math.floor(colKeys.length / 2)]] || [];
     if (midCol.length > 1) { const a = midCol.slice().sort((p, q) => p.v - q.v), p = a[0].t, q = a[1].t; r3 += '<line x1="' + f1(X3(p.x)) + '" y1="' + f1(Y3(p.y)) + '" x2="' + f1(X3(q.x)) + '" y2="' + f1(Y3(q.y)) + '" stroke="#d81b60" stroke-width="0.4"/><text x="' + f1((X3(p.x) + X3(q.x)) / 2 + 1) + '" y="' + f1((Y3(p.y) + Y3(q.y)) / 2 - 1.2) + '" font-size="3" fill="#d81b60" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + fm2(pa.sy) + '</text>'; }
     // cota perpendicular de cada lindero al árbol más próximo
@@ -1682,6 +2312,7 @@ details>*:not(summary){margin-bottom:6px}
     const mains = []; cand.forEach((q) => { if (!mains.some((m2) => m2 === q)) mains.push(q); });
     const nm = ['A', 'B', 'C', 'D'];
     mains.forEach((q, n) => { r3 += '<circle cx="' + f1(X3(q.t.x)) + '" cy="' + f1(Y3(q.t.y)) + '" r="' + (rr3 * 1.8).toFixed(2) + '" fill="none" stroke="#000" stroke-width="0.35"/><text x="' + f1(X3(q.t.x) + 3) + '" y="' + f1(Y3(q.t.y) - 2) + '" font-size="4" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.8">' + nm[n] + '</text>'; });
+    (finca.refs || []).forEach((r, ri) => { const q = pj.toXY(r.ll[0], r.ll[1]), cx = f1(X3(q[0])), cy = f1(Y3(q[1])); r3 += '<path d="M' + cx + ',' + (cy - 2.6) + 'L' + (+cx + 2.2) + ',' + cy + 'L' + cx + ',' + (+cy + 2.6) + 'L' + (cx - 2.2) + ',' + cy + 'Z" fill="#ff6f00" stroke="#000" stroke-width="0.25"/><text x="' + (+cx + 3) + '" y="' + (+cy + 1) + '" font-size="3.6" font-weight="bold" paint-order="stroke" stroke="#fff" stroke-width="0.7">R' + (ri + 1) + '</text>'; });
     for (let n = 0; n < mains.length; n++) { const a = mains[n].t, b = mains[(n + 1) % mains.length].t; if (mains.length < 2 || (mains.length === 2 && n === 1)) break; r3 += '<line x1="' + f1(X3(a.x)) + '" y1="' + f1(Y3(a.y)) + '" x2="' + f1(X3(b.x)) + '" y2="' + f1(Y3(b.y)) + '" stroke="#000" stroke-width="0.25" stroke-dasharray="1.5,1"/><text x="' + f1((X3(a.x) + X3(b.x)) / 2) + '" y="' + f1((Y3(a.y) + Y3(b.y)) / 2 - 1) + '" font-size="3" font-weight="bold" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="0.6">' + fm2(Math.hypot(a.x - b.x, a.y - b.y)) + '</text>'; }
     r3 += '</g>';
     const Ls3 = [5, 10, 20, 50, 100, 200, 500].find((v) => v * k3 >= 15 && v * k3 <= 60) || 50, sl3 = Ls3 * k3;
@@ -1693,13 +2324,17 @@ details>*:not(summary){margin-bottom:6px}
     let yy = MY + MH3 + 6; const col2 = M + (land ? 130 : 100);
     const tt = (x, y, s, fs, b) => '<text x="' + x + '" y="' + y + '" font-size="' + fs + '"' + (b ? ' font-weight="bold"' : '') + '>' + esc(s) + '</text>';
     let pie3 = tt(M, yy, 'Malla de plantación', 3.9, 1); yy += 5.2;
-    [['Marco', fm2(pa.sx) + ' (en fila) × ' + fm2(pa.sy) + ' (entre filas)'], ['Filas (F)', rowKeys.length + '  ·  rumbo ' + az.toFixed(1) + '° (azimut desde el norte)'], ['Columnas (C)', colKeys.length + '  ·  rumbo ' + az2.toFixed(1) + '°'], ['Árboles', res.total + (manualN ? ' (' + manualN + ' a mano, aro naranja)' : '')]].forEach((r) => { pie3 += tt(M, yy, r[0] + ':', 3.4, 1) + tt(M + 26, yy, r[1], 3.4); yy += 4.7; });
+    [['Marco', pa.pattern === 'tres' ? 'Tresbolillo: ' + fm2(pa.sx) + ' entre árboles; filas a ' + fm2(pa.sx * 0.8660254) : pa.pattern === 'curvas' ? 'Curvas de nivel: ' + fm2(pa.sx) + ' en la fila; filas cada ' + fm2(pa.sy) + ' (desnivel constante)' : fm2(pa.sx) + ' (en fila) × ' + fm2(pa.sy) + ' (entre filas)'], ['Filas (F)', rowKeys.length + '  ·  rumbo ' + az.toFixed(1) + '° (azimut desde el norte)'], ['Columnas (C)', noCols ? '— (filas desfasadas / curvas)' : colKeys.length + '  ·  rumbo ' + az2.toFixed(1) + '°'], ['Árboles', res.total + (manualN ? ' (' + manualN + ' a mano, aro naranja)' : '')]].forEach((r) => { pie3 += tt(M, yy, r[0] + ':', 3.4, 1) + tt(M + 26, yy, r[1], 3.4); yy += 4.7; });
     yy += 1.5; pie3 += tt(M, yy, 'Distancia perpendicular árbol más próximo → lindero', 3.6, 1); yy += 4.6;
     pie3 += tt(M, yy, refs.map((r) => 'L' + r.n + ': ' + fm2(r.d)).join('   ·   ').slice(0, 130), 3.2); yy += 5;
     let ty3 = MY + MH3 + 6;
     pie3 += tt(col2, ty3, 'Árboles principales (UTM ETRS89, huso 29N)', 3.9, 1); ty3 += 5.2;
-    mains.forEach((q, n) => { const ll = pj.toLL(q.t.x, q.t.y), u = utm29(ll[0], ll[1]); let dl = Infinity, lnum = 0; rl.forEach((r, ri) => { r.edges.forEach((ei) => { const f = segFoot(q.t.x, q.t.y, ring[ei], ring[(ei + 1) % ring.length]); if (f[2] < dl) { dl = f[2]; lnum = ri + 1; } }); }); pie3 += tt(col2, ty3, nm[n] + '  X ' + u[0].toFixed(1) + '  Y ' + u[1].toFixed(1) + '   (F' + (rowKeys.indexOf(q.j) + 1) + '/C' + (colKeys.indexOf(q.i) + 1) + ')  a L' + lnum + ': ' + fm2(dl), 3.1); ty3 += 4.6; });
+    mains.forEach((q, n) => { const ll = pj.toLL(q.t.x, q.t.y), u = utm29(ll[0], ll[1]); let dl = Infinity, lnum = 0; rl.forEach((r, ri) => { r.edges.forEach((ei) => { const f = segFoot(q.t.x, q.t.y, ring[ei], ring[(ei + 1) % ring.length]); if (f[2] < dl) { dl = f[2]; lnum = ri + 1; } }); }); pie3 += tt(col2, ty3, nm[n] + '  X ' + u[0].toFixed(1) + '  Y ' + u[1].toFixed(1) + '   (F' + (rowKeys.indexOf(q.j) + 1) + (noCols ? '' : '/C' + (colKeys.indexOf(q.i) + 1)) + ')  a L' + lnum + ': ' + fm2(dl), 3.1); ty3 += 4.6; });
     pie3 += tt(col2, ty3 + 1, 'Replanteo: fijar A y B con GPS, tender cordel A–B (fila) y', 2.8) + tt(col2, ty3 + 4.6, 'escuadrar con 3-4-5 la columna; marcar cada ' + fm2(pa.sx) + ' y cada ' + fm2(pa.sy) + '.', 2.8);
+    if ((finca.refs || []).length) {
+      ty3 += 10; pie3 += tt(col2, ty3, 'Puntos de referencia', 3.9, 1); ty3 += 4.8;
+      finca.refs.forEach((r, ri) => { const u = utm29(r.ll[0], r.ll[1]); pie3 += tt(col2, ty3, 'R' + (ri + 1) + '  X ' + u[0].toFixed(2) + '  Y ' + u[1].toFixed(2), 3.1); ty3 += 4.4; });
+    }
     const page3 = head(t3 + r3 + pie3) + '</svg>';
 
     /* ---- página 2: isométrico 3D ---- */
@@ -1753,7 +2388,7 @@ details>*:not(summary){margin-bottom:6px}
     const tx0 = land ? M + IW + 8 : M, tw = land ? PW - tx0 - M : MW; let y2 = land ? MY + 4 : MY + IH + 8; const nch = Math.floor(tw / 1.75);
     const line = (txt, fs, bold, col) => { p2 += '<text x="' + tx0 + '" y="' + y2 + '" font-size="' + fs + '"' + (bold ? ' font-weight="bold"' : '') + (col ? ' fill="' + col + '"' : '') + '>' + esc(txt) + '</text>'; y2 += fs * 1.45; };
     line('Relieve', 3.9, true);
-    line(haveZ ? 'MDT CNIG · cota ' + Math.round(zmin) + ' – ' + Math.round(zmax) + ' m · desnivel ' + Math.round(zmax - zmin) + ' m (exagerado ×' + EXA + ')' + (slopeStat ? ' · pendiente media ' + slopeStat.mean.toFixed(0) + ' %, máx. ' + slopeStat.max.toFixed(0) + ' %' : '') : 'Sin datos de relieve: vista sobre terreno plano.', 3.2); y2 += 2;
+    line(haveZ ? (mdt && mdt.src === 'AWS' ? 'Modelo global ~30 m · cota ' : 'MDT CNIG · cota ') + Math.round(zmin) + ' – ' + Math.round(zmax) + ' m · desnivel ' + Math.round(zmax - zmin) + ' m (exagerado ×' + EXA + ')' + (slopeStat ? ' · pendiente media ' + slopeStat.mean.toFixed(0) + ' %, máx. ' + slopeStat.max.toFixed(0) + ' %' : '') : 'Sin datos de relieve: vista sobre terreno plano.', 3.2); y2 += 2;
     line('Árboles: ' + res.total, 3.9, true);
     Object.keys(S).filter((s) => res.counts[s]).forEach((s) => { p2 += '<circle cx="' + (tx0 + 2) + '" cy="' + (y2 - 1.1) + '" r="1.9" fill="' + S[s].color + '" stroke="#333" stroke-width="0.25"/><text x="' + (tx0 + 6) + '" y="' + y2 + '" font-size="3.4">' + esc(S[s].name) + ': ' + res.counts[s] + '</text>'; y2 += 4.8; });
     y2 += 2;

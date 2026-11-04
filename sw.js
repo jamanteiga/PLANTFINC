@@ -1,4 +1,4 @@
-const CACHE = 'plantfinc-v1.6.0';
+const CACHE = 'plantfinc-v2.0.0';
 const SHELL = ['./', './index.html', './core.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -7,7 +7,7 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))));
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE && k !== 'plantfinc-tiles').map((k) => caches.delete(k)))));
   self.clients.claim();
 });
 
@@ -25,5 +25,9 @@ self.addEventListener('fetch', (e) => {
       const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); return r;
     })));
   }
-  // teselas y APIs: siempre red
+  else if (/tile\.openstreetmap\.org|opentopomap\.org|ign\.es\/wmts/.test(u.hostname + u.pathname)) {
+    // teselas: red primero; si falla, las guardadas con «Descargar mapa sin conexión»
+    e.respondWith(fetch(e.request).catch(() => caches.open('plantfinc-tiles').then((c) => c.match(e.request.url)).then((m) => m || Response.error())));
+  }
+  // APIs: siempre red
 });
