@@ -1536,21 +1536,24 @@ details>*:not(summary){margin-bottom:6px}
   let on3d = false;
   /* ---------- relieve 3D con el MDT del CNIG (WCS del IGN), con modelo global de respaldo ---------- */
   let mdt = null, mdtBox = null, protoOn = false, tok3d = 0; const demCache = new Map();
+  let parseErr = '';
   function parseASC(txt) {
     const i = txt.search(/ncols/i); if (i < 0) return null;
     const lines = txt.slice(i).split(/\r?\n/), h = {}; let k = 0;
-    for (; k < lines.length; k++) { const m = lines[k].trim().match(/^(ncols|nrows|xllcorner|yllcorner|xllcenter|yllcenter|cellsize|nodata_value)\s+(\S+)/i); if (!m) break; h[m[1].toLowerCase()] = +m[2]; }
-    const nx = h.ncols, ny = h.nrows, cs = h.cellsize; if (!(nx > 1 && ny > 1 && cs > 0)) return null;
+    for (; k < lines.length; k++) { const m = lines[k].trim().match(/^(ncols|nrows|xllcorner|yllcorner|xllcenter|yllcenter|cellsize|dx|dy|nodata_value)\s+(\S+)/i); if (!m) break; h[m[1].toLowerCase()] = +String(m[2]).replace(',', '.'); }
+    if (h.cellsize == null && h.dx > 0) h.cellsize = h.dx;
+    const csy = h.dy > 0 ? h.dy : h.cellsize;
+    const nx = h.ncols, ny = h.nrows, cs = h.cellsize; if (!(nx > 1 && ny > 1 && cs > 0)) { parseErr = 'cabecera ASC: ' + JSON.stringify(h).slice(0, 120); return null; }
     const data = new Float32Array(nx * ny); let idx = 0;
     for (; k < lines.length && idx < nx * ny; k++) {
       const ln = lines[k].trim(); if (!ln) continue; if (/^--/.test(ln)) break;
       ln.split(/\s+/).forEach((v) => { if (idx < nx * ny) data[idx++] = +v; });
     }
-    if (idx < nx * ny) return null;
+    if (idx < nx * ny) { parseErr = 'datos incompletos ' + idx + '/' + nx * ny + ' · ' + JSON.stringify(h).slice(0, 100); return null; }
     const nd = h.nodata_value != null ? h.nodata_value : -9999;
     const x0 = h.xllcorner != null ? h.xllcorner : h.xllcenter - cs / 2, y0 = h.yllcorner != null ? h.yllcorner : h.yllcenter - cs / 2;
-    if (Math.abs(x0) > 180 || Math.abs(y0) > 90) return null;   // no está en grados
-    return { x0: x0, y0: y0, cs: cs, nx: nx, ny: ny, data: data, nd: nd };
+    if (Math.abs(x0) > 180 || Math.abs(y0) > 90) { parseErr = 'no está en grados: ' + JSON.stringify(h).slice(0, 120); return null; }   // no está en grados
+    return { x0: x0, y0: y0, cs: cs, csy: csy, nx: nx, ny: ny, data: data, nd: nd };
   }
   async function fetchMDT(bb) {
     const base = 'https://servicios.idee.es/wcs-inspire/mdt';
@@ -1561,7 +1564,7 @@ details>*:not(summary){margin-bottom:6px}
       const url = base + '?SERVICE=WCS&VERSION=2.0.1&REQUEST=GetCoverage&COVERAGEID=' + v[0] + '&FORMAT=application/asc&SUBSET=' + v[1] + '(' + bb[1] + ',' + bb[3] + ')&SUBSET=' + v[2] + '(' + bb[0] + ',' + bb[2] + ')';
       try {
         const r = await fetch(url), t = await r.text();
-        if (r.ok) { const g = parseASC(t); if (g) { g.src = v[0]; return g; } last = v[0] + ': respuesta no reconocida (' + t.slice(0, 80).replace(/\s+/g, ' ') + ')'; }
+        if (r.ok) { const g = parseASC(t); if (g) { g.src = v[0]; return g; } last = v[0] + ': respuesta no reconocida (' + (parseErr || t.slice(0, 80).replace(/\s+/g, ' ')) + ')'; }
         else last = v[0] + ': HTTP ' + r.status + ' ' + t.slice(0, 80).replace(/\s+/g, ' ');
       } catch (e) { last = v[0] + ': ' + e.message; }
     }
@@ -1596,7 +1599,7 @@ details>*:not(summary){margin-bottom:6px}
   }
   function mdtSample(lon, lat) {
     const g = mdt; if (!g) return null;
-    const fx = (lon - g.x0) / g.cs - 0.5, fy = (g.y0 + g.ny * g.cs - lat) / g.cs - 0.5;
+    const csy = g.csy || g.cs, fx = (lon - g.x0) / g.cs - 0.5, fy = (g.y0 + g.ny * csy - lat) / csy - 0.5;
     const ix = Math.floor(fx), iy = Math.floor(fy); if (ix < 0 || iy < 0 || ix + 1 >= g.nx || iy + 1 >= g.ny) return null;
     const tx = fx - ix, ty = fy - iy, z = (x, y) => g.data[y * g.nx + x];
     const a = z(ix, iy), b = z(ix + 1, iy), c = z(ix, iy + 1), d = z(ix + 1, iy + 1);
