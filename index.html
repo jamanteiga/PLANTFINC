@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v2.1</title>
+<title>PLANTFINC v2.2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -195,6 +195,7 @@ details>*:not(summary){margin-bottom:6px}
     <div id="st-info" class="muted"></div>
     <div class="g3"><button class="btn sec" id="st-prev">&#x25C0;</button><button class="btn" id="st-ok">&#x2713; Plantado</button><button class="btn sec" id="st-next">&#x25B6;</button></div>
     <div class="g3"><button class="btn danger" id="st-dead">Marra</button><button class="btn sec" id="st-mode">Modo</button><button class="btn" id="st-end">Terminar</button></div>
+    <div class="g3"><button class="btn sec" id="st-base">Base</button><button class="btn sec" id="st-snd">🔔 Aviso</button><button class="btn sec" id="st-crew" style="visibility:hidden">·</button></div>
   </div>
   <div id="nbar" class="hidden"><div class="muted">Toca el mapa para añadir una nota (obstáculo, roca, hormiguero…) o toca una nota para verla.</div><div class="g2"><button class="btn sec" id="nb-gps">En mi posición</button><button class="btn" id="nb-ok">Terminar</button></div></div>
   <div id="nform" class="hidden"><div class="card"><b>Nueva nota</b><textarea id="nf-txt" rows="3" placeholder="Texto de la nota"></textarea><input type="file" id="nf-img" accept="image/*" capture="environment"><div class="g2"><button class="btn sec" id="nf-x">Cancelar</button><button class="btn" id="nf-ok">Guardar</button></div></div></div>
@@ -506,8 +507,9 @@ details>*:not(summary){margin-bottom:6px}
     } else { setSrc('finca', EMPTY); setSrc('edges', EMPTY); }
 
     if (prep) {
+      const cmv = crewOn ? crewMap() : null;
       setSrc('trees', { type: 'FeatureCollection', features: res.trees.map((t) => ({
-        type: 'Feature', properties: { color: S[t.sp].color, st: (finca.status || {})[tkey(t)] || '' }, geometry: { type: 'Point', coordinates: prep.pj.toLL(t.x, t.y) } })) });
+        type: 'Feature', properties: { color: cmv ? CREWC[cmv.map[tkey(t)] || 0] : S[t.sp].color, st: (finca.status || {})[tkey(t)] || '' }, geometry: { type: 'Point', coordinates: prep.pj.toLL(t.x, t.y) } })) });
     } else setSrc('trees', EMPTY);
 
     const ex = [];
@@ -720,53 +722,120 @@ details>*:not(summary){margin-bottom:6px}
     o += '0\nENDSEC\n0\nEOF\n';
     download('plantfinc-' + slug(finca.name) + '.dxf', o, 'application/dxf'); toast('DXF en coordenadas UTM 29N (ETRS89)', 4000);
   }
-  /* ---------- replanteo con GPS ---------- */
-  let st = null;
-  function stKey(t) { return tkey(t); }
-  function stOrder() {
-    const T = treeTable().slice().sort((a, b) => ((a.fila || 1e6) - (b.fila || 1e6)) || (((a.fila || 0) % 2 ? 1 : -1) * ((a.col || a.t.i || 0) - (b.col || b.t.i || 0))));
-    return T;
-  }
-  function stStats() { let p = 0, m = 0; res.trees.forEach((t) => { const s = (finca.status || {})[stKey(t)]; if (s === 'p') p++; else if (s === 'm') m++; }); return { p: p, m: m, n: res.trees.length }; }
+  /* ---------- replanteo con GPS (v2.2: filas, promedio, base, avisos) ---------- */
   const ARROWS = ['⬆', '↗', '➡', '↘', '⬇', '↙', '⬅', '↖'];
+  let st = null, gpsBuf = [], wakeLock = null, audioCtx = null, crewOn = false;
+  const CREWC = ['#e53935', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#6d4c41', '#d81b60'];
+  function stKey(t) { return tkey(t); }
+  function stStats() { let p = 0, m = 0; res.trees.forEach((t) => { const s = (finca.status || {})[stKey(t)]; if (s === 'p') p++; else if (s === 'm') m++; }); return { p: p, m: m, n: res.trees.length }; }
+  function stLog(t, v) { finca.log = finca.log || []; finca.log.push({ t: Date.now(), k: stKey(t), sp: t.sp, s: v || '' }); if (finca.log.length > 6000) finca.log.splice(0, finca.log.length - 6000); }
+  // posición corregida: promedio ponderado de las últimas lecturas + corrección de base
+  function fixPos(win) {
+    if (!lastFix || !prep) return null;
+    const now = Date.now(); gpsBuf = gpsBuf.filter((b) => now - b.t < 15000);
+    let buf = gpsBuf.filter((b) => now - b.t < (win || 3500));
+    if (!buf.length) buf = [{ t: now, ll: [lastFix[0], lastFix[1]], acc: lastFix[2] }];
+    let sx = 0, sy = 0, sw = 0, best = Infinity;
+    buf.forEach((b) => { const q = prep.pj.toXY(b.ll[0], b.ll[1]), w = 1 / Math.max(1, b.acc * b.acc); sx += q[0] * w; sy += q[1] * w; sw += w; if (b.acc < best) best = b.acc; });
+    const o = finca.gpsOff || [0, 0];
+    return { raw: [sx / sw, sy / sw], xy: [sx / sw + o[0], sy / sw + o[1]], acc: best, n: buf.length };
+  }
+  function stRows() {
+    const by = {}; st.T.forEach((r) => { if (r.fila != null && !r.man) (by[r.fila] = by[r.fila] || []).push(r); });
+    return Object.keys(by).map(Number).sort((a, b) => a - b).map((f) => {
+      const tr = by[f].sort((a, b) => (a.t.i - b.t.i)); if (tr.length < 2) return null; const p0 = [tr[0].t.x, tr[0].t.y], p1 = [tr[tr.length - 1].t.x, tr[tr.length - 1].t.y], L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1;
+      return { fila: f, trees: tr, p0: p0, p1: p1, d: [(p1[0] - p0[0]) / L, (p1[1] - p0[1]) / L] };
+    }).filter(Boolean);
+  }
+  function beep() {
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.frequency.value = 880; g.gain.value = 0.25; o.connect(g); g.connect(audioCtx.destination); o.start(); setTimeout(() => o.stop(), 180); } catch (e) { /* */ }
+    try { if (navigator.vibrate) navigator.vibrate([180, 90, 180]); } catch (e) { /* */ }
+  }
+  const dispSt = (r) => (finca.status || {})[stKey(r.t)] || '';
   function stUpdate() {
     if (!st || !prep) return;
-    const s = stStats(); let txt = 'Plantados ' + s.p + '/' + s.n + ' · marras ' + s.m + '. ';
-    const T = st.T; let tgt = null;
-    if (st.mode === 'near' && lastFix) {
-      const q = prep.pj.toXY(lastFix[0], lastFix[1]); let bd = Infinity;
-      T.forEach((r) => { if (r.st === 'p' || (finca.status || {})[stKey(r.t)] === 'p') return; const d = Math.hypot(r.t.x - q[0], r.t.y - q[1]); if (d < bd) { bd = d; tgt = r; } });
-    } else if (st.mode === 'seq') { tgt = T.find((r) => (finca.status || {})[stKey(r.t)] !== 'p' && (finca.status || {})[stKey(r.t)] !== 'm') || null; if (st.pin) tgt = st.pin; }
-    st.target = tgt; $('#st-mode').textContent = st.mode === 'near' ? 'Modo: más cercano' : 'Modo: en orden';
-    if (!tgt) { setSrc('nav', EMPTY); $('#st-info').textContent = txt + (s.p + s.m >= s.n ? '¡Todos los árboles marcados!' : (lastFix ? '' : 'Activa el GPS (menú capas) o toca árboles para marcarlos.')); return; }
-    let nav = '';
-    if (lastFix) {
-      const q = prep.pj.toXY(lastFix[0], lastFix[1]), dx = tgt.t.x - q[0], dy = tgt.t.y - q[1], d = Math.hypot(dx, dy), br = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
-      nav = ' → ' + tgt.name + ' (' + S[tgt.sp].name + '): ' + ARROWS[Math.round(br / 45) % 8] + ' ' + fmtM(d) + ' · rumbo ' + Math.round(br) + '°' + (d < 1 ? ' · ¡AQUÍ! pulsa ✓' : '') + (lastFix[2] > 8 ? ' · GPS ±' + Math.round(lastFix[2]) + ' m' : '');
-      setSrc('nav', { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[lastFix[0], lastFix[1]], tgt.ll] } });
-    } else { nav = ' → ' + tgt.name + ' (' + S[tgt.sp].name + '). Sin GPS: toca árboles para marcarlos.'; setSrc('nav', EMPTY); }
-    $('#st-info').textContent = txt + nav.trim();
+    const s = stStats(), T = st.T, P = fixPos(); let tgt = null, extra = '';
+    const done = (r) => dispSt(r) === 'p' || dispSt(r) === 'm';
+    const modeTxt = { near: 'Modo: más cercano', seq: 'Modo: en orden', row: 'Modo: por filas' };
+    if (st.mode === 'row' && !st.rows.length) st.mode = 'near';
+    $('#st-mode').textContent = modeTxt[st.mode];
+    let line = [];
+    if (st.mode === 'near' && P) { let bd = Infinity; T.forEach((r) => { if (dispSt(r) === 'p') return; const d = Math.hypot(r.t.x - P.xy[0], r.t.y - P.xy[1]); if (d < bd) { bd = d; tgt = r; } }); }
+    else if (st.mode === 'seq' || (st.mode === 'near' && !P)) { tgt = st.pin || T.find((r) => !done(r)) || null; }
+    else if (st.mode === 'row') {
+      if (st.rowI == null || st.rowI >= st.rows.length) st.rowI = 0;
+      const row = st.rows[st.rowI];
+      if (P && st.rowAuto) { let bl = Infinity, bi = 0; st.rows.forEach((rw, i) => { const rx = P.xy[0] - rw.p0[0], ry = P.xy[1] - rw.p0[1], al = rx * rw.d[0] + ry * rw.d[1], l = Math.abs(rx * rw.d[1] - ry * rw.d[0]); if (al > -5 && al < Math.hypot(rw.p1[0] - rw.p0[0], rw.p1[1] - rw.p0[1]) + 5 && l < bl) { bl = l; bi = i; } }); st.rowI = bi; st.rowAuto = false; }
+      const rw = st.rows[st.rowI], rest = rw.trees.filter((r) => dispSt(r) !== 'p' && dispSt(r) !== 'm');
+      line.push('Fila ' + rw.fila + ' (' + (rw.trees.length - rest.length) + '/' + rw.trees.length + ')');
+      if (P) {
+        const rx = P.xy[0] - rw.p0[0], ry = P.xy[1] - rw.p0[1], along = rx * rw.d[0] + ry * rw.d[1], lat = rx * rw.d[1] - ry * rw.d[0];
+        let bd = Infinity; rest.forEach((r) => { const al = (r.t.x - rw.p0[0]) * rw.d[0] + (r.t.y - rw.p0[1]) * rw.d[1], d = Math.abs(al - along); if (d < bd) { bd = d; tgt = r; tgt._al = al; } });
+        const cm = Math.round(Math.abs(lat) * 100), cmT = cm < 100 ? cm + ' cm' : fmtM(Math.abs(lat));
+        line.push(cm < 15 ? '✔ en la línea (±' + cm + ' cm)' : (lat > 0 ? '⬅ ve ' + cmT + ' a la izquierda' : '➡ ve ' + cmT + ' a la derecha'));
+        if (tgt) { const da = tgt._al - along; line.push('→ ' + tgt.name + ': ' + (Math.abs(da) < 0.3 ? 'AQUÍ' : (da > 0 ? '⬆ ' : '⬇ ') + fmtM(Math.abs(da)))); }
+        extra = [[rw.p0[0] - rw.d[0] * 3, rw.p0[1] - rw.d[1] * 3], [rw.p1[0] + rw.d[0] * 3, rw.p1[1] + rw.d[1] * 3]];
+      } else { tgt = rest[0] || null; extra = [[rw.p0[0], rw.p0[1]], [rw.p1[0], rw.p1[1]]]; if (tgt) line.push('→ ' + tgt.name); }
+      if (!rest.length) line.push('fila completa; pulsa ▶ para la siguiente');
+    }
+    st.target = tgt;
+    const feats = [];
+    if (extra) feats.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: extra.map((q) => prep.pj.toLL(q[0], q[1])) } });
+    if (P && tgt) {
+      const dx = tgt.t.x - P.xy[0], dy = tgt.t.y - P.xy[1], d = Math.hypot(dx, dy), br = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+      if (st.mode !== 'row') line.push('→ ' + tgt.name + ' (' + S[tgt.sp].name + '): ' + ARROWS[Math.round(br / 45) % 8] + ' ' + fmtM(d) + ' · rumbo ' + Math.round(br) + '°');
+      else line.push(fmtM(d) + ' en recto');
+      feats.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [prep.pj.toLL(P.xy[0], P.xy[1]), tgt.ll] } });
+      if (d < 1) { if (st.alerted !== tgt.name) { st.alerted = tgt.name; if (st.snd) beep(); } line.push('¡AQUÍ! pulsa ✓'); } else if (d > 2) st.alerted = null;
+    } else if (!P && st.mode !== 'row' && tgt) line.push('→ ' + tgt.name + ' (' + S[tgt.sp].name + '). Sin GPS: toca árboles para marcarlos.');
+    setSrc('nav', feats.length ? { type: 'FeatureCollection', features: feats } : EMPTY);
+    const warn = P ? (P.acc > 3 ? '⚠ GPS ±' + Math.round(P.acc) + ' m: poco preciso para replantear. ' : 'GPS ±' + P.acc.toFixed(1) + ' m (' + P.n + ' lect.). ') : '';
+    $('#st-info').innerHTML = '<b>Plantados ' + s.p + '/' + s.n + ' · marras ' + s.m + '</b>' + (finca.gpsOff ? ' · base ✔' : '') + '<br>' + warn + (line.length ? line.join(' · ') : (s.p + s.m >= s.n ? '¡Todos marcados!' : (P ? '' : 'Activa el GPS o toca árboles para marcarlos.')));
+    $('#st-info').style.color = P && P.acc > 3 ? '#b71c1c' : '';
+    if (!tgt && st.mode !== 'row') setSrc('nav', EMPTY);
   }
-  function startStake() {
+  async function startStake() {
     if (!mapReady || onList || !prep) { toast('Primero elige la parcela'); return; }
     closeSheet(); endSigpac(); if (ms) endMeasure(); if (tr) endTramo(); if (draw) endDraw(); if (tt) endTrees(); if (nt) endNotes(); $('#hmenu').classList.add('hidden');
     freezeLattice(); finca.status = finca.status || {};
     if (gpsWatch === null) startGPS();
-    st = { mode: lastFix ? 'near' : 'seq', T: treeTable(), target: null, pin: null }; $('#stbar').classList.remove('hidden'); refreshMap(); stUpdate();
+    try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { wakeLock = null; }
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.resume) audioCtx.resume(); } catch (e) { /* */ }
+    st = { mode: 'near', T: treeTable(), target: null, pin: null, rows: [], rowI: 0, snd: true, alerted: null, rowAuto: true };
+    st.rows = finca.params.pattern === 'curvas' ? [] : stRows();
+    $('#st-snd').textContent = '🔔 Aviso'; $('#stbar').classList.remove('hidden'); refreshMap(); stUpdate();
   }
-  function endStake() { if (!st) return; st = null; $('#stbar').classList.add('hidden'); setSrc('nav', EMPTY); persist(); renderTab(); }
-  function stSet(t, v) { finca.status = finca.status || {}; if (v) finca.status[stKey(t)] = v; else delete finca.status[stKey(t)]; refreshMap(); persist(); }
+  function endStake() { if (!st) return; st = null; try { if (wakeLock) wakeLock.release(); } catch (e) { /* */ } wakeLock = null; $('#stbar').classList.add('hidden'); setSrc('nav', EMPTY); persist(); renderTab(); }
+  function stSet(t, v) { finca.status = finca.status || {}; if (v) finca.status[stKey(t)] = v; else delete finca.status[stKey(t)]; stLog(t, v); refreshMap(); persist(); }
   function stTap(e) {
     const t = pickTree(e, 22); if (!t) return;
     const k = stKey(t), cur = (finca.status || {})[k] || '', nx = cur === '' ? 'p' : cur === 'p' ? 'm' : '';
     stSet(t, nx); st.T = treeTable(); stUpdate(); toast(nx === 'p' ? 'Plantado' : nx === 'm' ? 'Marra' : 'Pendiente', 1200);
   }
-  $('#st-ok').onclick = () => { if (st && st.target) { stSet(st.target.t, 'p'); st.T = treeTable(); st.pin = null; stUpdate(); } };
-  $('#st-dead').onclick = () => { if (st && st.target) { stSet(st.target.t, 'm'); st.T = treeTable(); st.pin = null; stUpdate(); } };
-  $('#st-next').onclick = () => { if (!st) return; const i = st.T.findIndex((r) => st.target && r.name === st.target.name); st.mode = 'seq'; st.pin = st.T[(i + 1) % st.T.length]; stUpdate(); };
-  $('#st-prev').onclick = () => { if (!st) return; const i = st.T.findIndex((r) => st.target && r.name === st.target.name); st.mode = 'seq'; st.pin = st.T[(i - 1 + st.T.length) % st.T.length]; stUpdate(); };
-  $('#st-mode').onclick = () => { if (!st) return; st.mode = st.mode === 'near' ? 'seq' : 'near'; st.pin = null; stUpdate(); };
+  const stAfter = () => { st.T = treeTable(); st.pin = null; stUpdate(); };
+  $('#st-ok').onclick = () => { if (st && st.target) { stSet(st.target.t, 'p'); stAfter(); } };
+  $('#st-dead').onclick = () => { if (st && st.target) { stSet(st.target.t, 'm'); stAfter(); } };
+  const stStep = (dir) => {
+    if (!st) return;
+    if (st.mode === 'row') { st.rowI = (st.rowI + dir + st.rows.length) % st.rows.length; st.rowAuto = false; stUpdate(); return; }
+    const i = st.T.findIndex((r) => st.target && r.name === st.target.name); st.mode = 'seq'; st.pin = st.T[(i + dir + st.T.length) % st.T.length]; stUpdate();
+  };
+  $('#st-next').onclick = () => stStep(1); $('#st-prev').onclick = () => stStep(-1);
+  $('#st-mode').onclick = () => { if (!st) return; const order = st.rows.length ? ['near', 'seq', 'row'] : ['near', 'seq']; st.mode = order[(order.indexOf(st.mode) + 1) % order.length]; st.pin = null; if (st.mode === 'row') st.rowAuto = true; stUpdate(); };
+  $('#st-snd').onclick = () => { if (!st) return; st.snd = !st.snd; $('#st-snd').textContent = st.snd ? '🔔 Aviso' : '🔕 Sin aviso'; if (st.snd) beep(); };
+  $('#st-base').onclick = () => {
+    if (!st) return;
+    if (finca.gpsOff) { finca.gpsOff = null; persist(); toast('Corrección de base quitada', 2500); stUpdate(); return; }
+    const P = fixPos(12000); if (!P) { toast('Sin posición GPS todavía'); return; }
+    if (P.n < 4) { toast('Espera unos segundos de lecturas (' + P.n + '/4) y vuelve a pulsar', 3500); return; }
+    const pj = prep.pj, cand = finca.ring.map((v, i) => ({ n: 'vértice ' + (i + 1), xy: pj.toXY(v[0], v[1]) })).concat((finca.refs || []).map((r, i) => ({ n: 'referencia R' + (i + 1), xy: pj.toXY(r.ll[0], r.ll[1]) })));
+    let b = null, bd = 40; cand.forEach((c) => { const d = Math.hypot(c.xy[0] - P.raw[0], c.xy[1] - P.raw[1]); if (d < bd) { bd = d; b = c; } });
+    if (!b) { toast('Colócate sobre un vértice o una referencia (a menos de 40 m) y pulsa «Base»', 6000); return; }
+    finca.gpsOff = [b.xy[0] - P.raw[0], b.xy[1] - P.raw[1]]; persist(); stUpdate();
+    toast('Base en ' + b.n + ': corrección ' + finca.gpsOff[0].toFixed(2) + ' m E, ' + finca.gpsOff[1].toFixed(2) + ' m N. Pulsa «Base» otra vez para quitarla.', 7000);
+  };
   $('#st-end').onclick = endStake;
+
   /* ---------- notas con foto ---------- */
   let nt = null, nMarks = [], nPending = null;
   function refreshNotes() {
@@ -1093,6 +1162,54 @@ details>*:not(summary){margin-bottom:6px}
       await Promise.all(urls.slice(i, i + 6).map(async (u) => { try { const r = await fetch(u); if (r.ok) { await cache.put(u, r); ok++; } else bad++; } catch (e) { bad++; } }));
     }
     toast('Mapa guardado: ' + ok + ' teselas (' + (z0) + '–' + z1 + ' de zoom, capa «' + base + '»)' + (bad ? ' · ' + bad + ' fallidas' : '') + '. Funciona sin conexión en esta zona.', 8000);
+  }
+  /* ---------- v2.2: cuadrillas, avance y reposición de marras ---------- */
+  function crewMap() {
+    const n = Math.max(1, Math.min(8, Math.round(+finca.crewN || 0))); if (!(n > 1) || !prep) return null;
+    const T = treeTable(), byRow = {}; T.forEach((r) => { if (r.fila != null) byRow[r.fila] = (byRow[r.fila] || 0) + 1; });
+    const rows = Object.keys(byRow).map(Number).sort((a, b) => a - b), tot = rows.reduce((s, f) => s + byRow[f], 0), rc = {}; let acc = 0;
+    rows.forEach((f) => { rc[f] = Math.min(n - 1, Math.floor((acc + byRow[f] / 2) / tot * n)); acc += byRow[f]; });
+    const map = {}, on = T.filter((r) => r.fila != null);
+    T.forEach((r) => {
+      if (r.fila != null) { map[tkey(r.t)] = rc[r.fila]; return; }
+      let bd = Infinity, c = 0; on.forEach((q) => { const d = Math.hypot(q.t.x - r.t.x, q.t.y - r.t.y); if (d < bd) { bd = d; c = rc[q.fila]; } }); map[tkey(r.t)] = c;
+    });
+    return { n: n, map: map, rc: rc, rows: rows };
+  }
+  function avanceHTML() {
+    if (!prep || !res.total) return '';
+    const T = treeTable(), cm = crewMap(), st0 = stStats();
+    let h = '<div><b>Total:</b> ' + st0.p + ' plantados · ' + st0.m + ' marras · ' + (st0.n - st0.p - st0.m) + ' pendientes de ' + st0.n + ' (' + (st0.n ? Math.round(100 * st0.p / st0.n) : 0) + ' %)</div>';
+    const sp = {}; T.forEach((r) => { const o = sp[r.sp] = sp[r.sp] || { n: 0, p: 0, m: 0 }; o.n++; if (r.st === 'p') o.p++; else if (r.st === 'm') o.m++; });
+    h += '<table><tr><th>Especie</th><th>Total</th><th>Plant.</th><th>Marras</th><th>% marra</th></tr>' + Object.keys(sp).map((k) => '<tr><td>' + esc(S[k].name) + '</td><td>' + sp[k].n + '</td><td>' + sp[k].p + '</td><td>' + sp[k].m + '</td><td>' + ((sp[k].p + sp[k].m) ? Math.round(100 * sp[k].m / (sp[k].p + sp[k].m)) : 0) + ' %</td></tr>').join('') + '</table>';
+    const days = {}; (finca.log || []).forEach((e) => { const d = new Date(e.t).toLocaleDateString('es-ES'); (days[d] = days[d] || {})[e.k] = e.s; });
+    const dk = Object.keys(days); if (dk.length) h += '<table><tr><th>Día</th><th>Plantados</th><th>Marras</th></tr>' + dk.map((d) => { let p = 0, m = 0; Object.keys(days[d]).forEach((k) => { if (days[d][k] === 'p') p++; else if (days[d][k] === 'm') m++; }); return '<tr><td>' + d + '</td><td>' + p + '</td><td>' + m + '</td></tr>'; }).join('') + '</table>';
+    if (cm) {
+      const c = []; for (let i = 0; i < cm.n; i++) c.push({ n: 0, p: 0, m: 0, f: [] });
+      T.forEach((r) => { const o = c[cm.map[tkey(r.t)] || 0]; o.n++; if (r.st === 'p') o.p++; else if (r.st === 'm') o.m++; });
+      cm.rows.forEach((f) => c[cm.rc[f]].f.push(f));
+      h += '<table><tr><th>Cuadrilla</th><th>Filas</th><th>Pies</th><th>Hecho</th></tr>' + c.map((o, i) => '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:5px;background:' + CREWC[i] + '"></span> ' + (i + 1) + '</td><td>' + (o.f.length ? o.f[0] + '–' + o.f[o.f.length - 1] : '—') + '</td><td>' + o.n + '</td><td>' + o.p + ' (' + (o.n ? Math.round(100 * o.p / o.n) : 0) + ' %)</td></tr>').join('') + '</table>';
+    }
+    return h;
+  }
+  function toggleCrews() {
+    if (!(Math.round(+finca.crewN || 0) > 1)) { toast('Indica primero el nº de cuadrillas (2-8)'); return; }
+    crewOn = !crewOn; refreshMap(); renderTab(); toast(crewOn ? 'Árboles coloreados por cuadrilla (franjas de filas contiguas con igual nº de pies)' : 'Colores por especie', 3500);
+  }
+  function marrasList() { return treeTable().filter((r) => r.st === 'm'); }
+  function marrasSummary(M) { const c = {}; M.forEach((r) => { c[r.sp] = (c[r.sp] || 0) + 1; }); return Object.keys(c).map((k) => c[k] + ' ' + S[k].name).join(', '); }
+  function exportMarrasCSV() {
+    const M = marrasList(); if (!M.length) { toast('No hay marras marcadas (en replanteo, botón «Marra»)'); return; }
+    const n2 = (v) => v.toFixed(2).replace('.', ','), n7 = (v) => v.toFixed(7).replace('.', ','), cm = crewMap();
+    let o = '﻿nombre;especie;fila;columna;x_utm29;y_utm29;lat;lon' + (cm ? ';cuadrilla' : '') + '\n';
+    M.forEach((r) => { o += [r.name, S[r.sp].name, r.fila == null ? '' : r.fila, r.col == null ? '' : r.col, n2(r.x), n2(r.y), n7(r.ll[1]), n7(r.ll[0])].join(';') + (cm ? ';' + (cm.map[tkey(r.t)] + 1) : '') + '\n'; });
+    download('plantfinc-' + slug(finca.name) + '-marras.csv', o, 'text/csv;charset=utf-8'); toast('Reponer: ' + marrasSummary(M), 7000);
+  }
+  function exportMarrasGPX() {
+    const M = marrasList(); if (!M.length) { toast('No hay marras marcadas'); return; }
+    let o = '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="PLANTFINC" xmlns="http://www.topografix.com/GPX/1/1">\n';
+    M.forEach((r) => { o += '<wpt lat="' + r.ll[1].toFixed(7) + '" lon="' + r.ll[0].toFixed(7) + '"><name>' + r.name + '</name><desc>Reponer ' + xmlEsc(S[r.sp].name) + '</desc><sym>Flag, Red</sym></wpt>\n'; });
+    download('plantfinc-' + slug(finca.name) + '-marras.gpx', o + '</gpx>\n', 'application/gpx+xml'); toast('Reponer: ' + marrasSummary(M), 7000);
   }
   /* ---------- cotas (medir distancias) ---------- */
   let ms = null, cMarks = [];
@@ -1613,6 +1730,7 @@ details>*:not(summary){margin-bottom:6px}
     setSrc('gps', { type: 'FeatureCollection', features: [
       polyFeature(ring, { t: 'acc' }),
       { type: 'Feature', properties: { t: 'pt' }, geometry: { type: 'Point', coordinates: [c.longitude, c.latitude] } }] });
+    gpsBuf.push({ t: Date.now(), ll: [c.longitude, c.latitude], acc: c.accuracy }); if (gpsBuf.length > 40) gpsBuf.shift();
     if (st) stUpdate();
   }
   $('#btn-gps').onclick = () => { if (gpsWatch === null) startGPS(); else stopGPS(); };
@@ -1886,9 +2004,9 @@ details>*:not(summary){margin-bottom:6px}
     const fm = ferradoM2();
     $('#m-ferr').textContent = fm && st.area ? (st.area / fm).toFixed(1) : '—';
     $('#m-trees').textContent = res.total;
-    ['counts', 'warns', 'econres', 'econres2'].forEach((id) => {
+    ['counts', 'warns', 'econres', 'econres2', 'avance'].forEach((id) => {
       const el = $('#' + id); if (!el) return;
-      el.innerHTML = id === 'counts' ? countsHTML() : id === 'warns' ? warnsHTML() : id === 'econres2' ? (() => { try { return econ2HTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : econHTML();
+      el.innerHTML = id === 'counts' ? countsHTML() : id === 'warns' ? warnsHTML() : id === 'avance' ? (() => { try { return avanceHTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : id === 'econres2' ? (() => { try { return econ2HTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : econHTML();
     });
   }
 
@@ -2024,7 +2142,11 @@ details>*:not(summary){margin-bottom:6px}
       '<div class="g2"><div><label>Tasa de descuento (%)</label><input type="number" step="any" inputmode="decimal" data-bind="econ.tasa" value="' + val(finca.econ.tasa) + '" placeholder="4"></div><div></div></div>' +
       '<div style="overflow-x:auto"><table><tr><th>Especie</th><th>Turno (años)</th></tr>' + Object.keys(S).map((sp) => '<tr><td>' + esc(S[sp].name) + '</td><td><input type="number" step="1" inputmode="numeric" data-bind="econ.sp.' + sp + '.turno" value="' + val(finca.econ.sp[sp].turno) + '" placeholder="' + (TURNO[sp] || 25) + '"></td></tr>').join('') + '</table></div>' +
       '<div id="econres2"></div>' +
-      '<button class="btn sec" data-act="scen">Comparar escenarios (especie, tresbolillo)</button><div id="scenres"></div></details>';
+      '<button class="btn sec" data-act="scen">Comparar escenarios (especie, tresbolillo)</button><div id="scenres"></div></details>' +
+      '<details><summary>Avance, cuadrillas y marras</summary>' +
+      '<div class="g2"><div><label>Nº de cuadrillas (2-8)</label><input type="number" min="1" max="8" step="1" inputmode="numeric" data-bind="crewN" value="' + val(finca.crewN) + '"></div><button class="btn sec" data-act="crewview" style="align-self:end">' + (crewOn ? 'Quitar colores' : 'Ver en el mapa') + '</button></div>' +
+      '<div id="avance"></div>' +
+      '<div class="g2"><button class="btn sec" data-act="marras-csv">Marras CSV</button><button class="btn sec" data-act="marras-gpx">Marras GPX</button></div></details>';
   }
 
   function tabNorma() {
@@ -2220,6 +2342,9 @@ details>*:not(summary){margin-bottom:6px}
       case 'angpick': { if (!angData) break; const r = b.getBoundingClientRect(), frac = Math.max(0, Math.min(1, ((e.clientX - r.left) / r.width * 300 - 14) / 280)), ang = Math.round(frac * angData.maxA); finca.params.opt = 'fijo'; finca.params.angle = ang; recalc(); renderTab(); toast('Ángulo fijado a ' + ang + '° → ' + res.total + ' árboles', 3500); break; }
       case 'slopemap': toggleSlopeMap(); break;
       case 'contours': toggleContours(); break;
+      case 'crewview': toggleCrews(); break;
+      case 'marras-csv': exportMarrasCSV(); break;
+      case 'marras-gpx': exportMarrasGPX(); break;
       case 'flowmap': toggleFlow(); break;
       case 'flow-excl': flowToExcl(); break;
       case 'excl-saca': startDraw('excl-saca'); break;
