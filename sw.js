@@ -1,4 +1,4 @@
-const CACHE = 'plantfinc-v2.0.0';
+const CACHE = 'plantfinc-v2.1.0';
 const SHELL = ['./', './index.html', './core.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {

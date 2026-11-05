@@ -480,6 +480,61 @@
     return { trees: trees, counts: counts, total: trees.length, rows: row };
   }
 
+
+  // Curvas de nivel por marching squares. zg={x0,y0,cs,nx,ny,z}; devuelve [{z, pts:[[x,y],...]}] (coordenadas locales)
+  function contourLines(zg, step) {
+    var nx = zg.nx, ny = zg.ny, cs = zg.cs, z = zg.z, x0 = zg.x0, y0 = zg.y0, i, j, zmin = Infinity, zmax = -Infinity, out = [];
+    for (i = 0; i < z.length; i++) if (z[i] === z[i]) { if (z[i] < zmin) zmin = z[i]; if (z[i] > zmax) zmax = z[i]; }
+    if (!(zmax > zmin) || !(step > 0)) return out;
+    for (var lv = Math.ceil(zmin / step) * step; lv <= zmax; lv += step) {
+      var nodes = {}, L = lv + 1e-6;
+      var node = function (key, ax, ay, bx, by, va, vb) { if (!nodes[key]) { var t = (L - va) / (vb - va); nodes[key] = { p: [ax + (bx - ax) * t, ay + (by - ay) * t], n: [] }; } return key; };
+      var link = function (a, b) { nodes[a].n.push(b); nodes[b].n.push(a); };
+      for (j = 0; j < ny - 1; j++) for (i = 0; i < nx - 1; i++) {
+        var va = z[j * nx + i], vb = z[j * nx + i + 1], vc = z[(j + 1) * nx + i + 1], vd = z[(j + 1) * nx + i];
+        if (!(va === va && vb === vb && vc === vc && vd === vd)) continue;
+        var X = x0 + i * cs, Y = y0 + j * cs, ks = [];
+        if ((va < L) !== (vb < L)) ks.push(node('h' + i + ',' + j, X, Y, X + cs, Y, va, vb));
+        if ((vb < L) !== (vc < L)) ks.push(node('v' + (i + 1) + ',' + j, X + cs, Y, X + cs, Y + cs, vb, vc));
+        if ((vd < L) !== (vc < L)) ks.push(node('h' + i + ',' + (j + 1), X, Y + cs, X + cs, Y + cs, vd, vc));
+        if ((va < L) !== (vd < L)) ks.push(node('v' + i + ',' + j, X, Y, X, Y + cs, va, vd));
+        if (ks.length === 2) link(ks[0], ks[1]); else if (ks.length === 4) { link(ks[0], ks[1]); link(ks[2], ks[3]); }
+      }
+      var seen = {}, keys = Object.keys(nodes);
+      var walk = function (s) {
+        var path = [], cur = s, prev = null;
+        while (cur && !seen[cur]) { seen[cur] = 1; path.push(nodes[cur].p); var nx2 = null, n = nodes[cur].n; for (var q = 0; q < n.length; q++) if (n[q] !== prev && !seen[n[q]]) { nx2 = n[q]; break; } prev = cur; cur = nx2; }
+        return path;
+      };
+      keys.forEach(function (k) { if (!seen[k] && nodes[k].n.length === 1) { var p = walk(k); if (p.length > 2) out.push({ z: lv, pts: p }); } });
+      keys.forEach(function (k) { if (!seen[k]) { var p = walk(k); if (p.length > 2) { p.push(p[0]); out.push({ z: lv, pts: p }); } } });
+    }
+    return out;
+  }
+  // Acumulación de flujo D8 sobre el MDT. Devuelve {acc (m² aguas arriba), dir (índice destino o -1)}
+  function flowAcc(zg) {
+    var nx = zg.nx, ny = zg.ny, cs = zg.cs, N = nx * ny, z = new Float32Array(N), i, j, k;
+    for (j = 0; j < ny; j++) for (i = 0; i < nx; i++) {
+      var s = 0, c = 0;
+      for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) { var ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii < nx && jj < ny) { var v = zg.z[jj * nx + ii]; if (v === v) { s += v; c++; } } }
+      z[j * nx + i] = c ? s / c : NaN;
+    }
+    var dir = new Int32Array(N).fill(-1), acc = new Float32Array(N), ord = [];
+    for (k = 0; k < N; k++) { if (z[k] === z[k]) { ord.push(k); acc[k] = cs * cs; } }
+    for (k = 0; k < ord.length; k++) {
+      var p = ord[k], pi = p % nx, pj = (p - pi) / nx, best = -1, bs = 0;
+      for (var b = -1; b <= 1; b++) for (var a = -1; a <= 1; a++) {
+        if (!a && !b) continue; var qi = pi + a, qj = pj + b; if (qi < 0 || qj < 0 || qi >= nx || qj >= ny) continue;
+        var q = qj * nx + qi, zq = z[q]; if (!(zq === zq)) continue;
+        var sl = (z[p] - zq) / (cs * (a && b ? 1.41421356 : 1)); if (sl > bs) { bs = sl; best = q; }
+      }
+      dir[p] = best;
+    }
+    ord.sort(function (m, n) { return z[n] - z[m]; });
+    for (k = 0; k < ord.length; k++) { var pp = ord[k]; if (dir[pp] >= 0) acc[dir[pp]] += acc[pp]; }
+    return { acc: acc, dir: dir };
+  }
+
   function optimize(prep, finca, stepDeg, nShift) {
     stepDeg = stepDeg || 2.5; nShift = nShift || 4;
     var sx = +finca.params.sx, sy = +finca.params.sy;
@@ -548,7 +603,7 @@
     SPECIES: SPECIES, LINDEROS: LINDEROS, CONCELLOS: CONCELLOS,
     defaultNorm: defaultNorm, defaultEdge: defaultEdge, ensureEdges: ensureEdges, groupKey: groupKey,
     centroidLL: centroidLL, makeProj: makeProj, areaXY: areaXY, inPoly: inPoly, distSeg: distSeg, stats: stats,
-    prepare: prepare, generate: generate, optimize: optimize, makeEval: makeEval, optimizeAuto: optimizeAuto, fillCandidates: fillCandidates, optimizeThrough: optimizeThrough, contourTrees: contourTrees, angleCurve: angleCurve,
+    prepare: prepare, generate: generate, optimize: optimize, makeEval: makeEval, optimizeAuto: optimizeAuto, fillCandidates: fillCandidates, optimizeThrough: optimizeThrough, contourTrees: contourTrees, contourLines: contourLines, flowAcc: flowAcc, angleCurve: angleCurve,
     ringFromGeoJSON: ringFromGeoJSON, ringFromGML: ringFromGML
   };
 });

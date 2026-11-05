@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v2.0</title>
+<title>PLANTFINC v2.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -378,7 +378,7 @@ details>*:not(summary){margin-bottom:6px}
       n++; sum += v; surf += cs * cs * Math.sqrt(1 + (v / 100) * (v / 100)); ax += -(z[j * nx + i + 1] - z[j * nx + i - 1]); ay += -(z[(j + 1) * nx + i] - z[(j - 1) * nx + i]); if (v > mx) mx = v; if (sm > 0 && v > sm) over++; const zz = z[j * nx + i]; if (zz < zmin) zmin = zz; if (zz > zmax) zmax = zz;
     }
     if (n) slopeStat = { mean: sum / n, max: mx, over: sm > 0 ? over / n * 100 : 0, zmin: zmin, zmax: zmax, surf: surf, flat: n * cs * cs, asp: (Math.atan2(ax, ay) * 180 / Math.PI + 360) % 360, aspOK: Math.hypot(ax, ay) > 0.15 * n * 0.1 };
-    try { refreshSlopeMap(); } catch (e) { /* */ }
+    try { refreshSlopeMap(); refreshContours(); refreshFlow(); } catch (e) { /* */ }
   }
   async function ensureMDT() {
     if (mdtBusy || !finca || !finca.ring || typeof fetch !== 'function') return;
@@ -835,6 +835,90 @@ details>*:not(summary){margin-bottom:6px}
       map.addSource('slopeimg', { type: 'image', url: cv.toDataURL('image/png'), coordinates: [pj.toLL(g.x0, y1), pj.toLL(x1, y1), pj.toLL(x1, g.y0), pj.toLL(g.x0, g.y0)] });
       map.addLayer({ id: 'slopeimg', type: 'raster', source: 'slopeimg', paint: { 'raster-opacity': 0.75, 'raster-fade-duration': 0 } }, map.getLayer('excl-fill') ? 'excl-fill' : undefined);
     } catch (e) { fail('mapa de pendientes', e); }
+  }
+  /* ---------- v2.1: curvas de nivel y escorrentía ---------- */
+  let curvOn = false, flowOn = false, curvMarks = [], flowCache = null;
+  function curvStep() { const g = slopeGrid && slopeGrid.zg, r = slopeStat ? slopeStat.zmax - slopeStat.zmin : 20; return r < 12 ? 1 : r < 30 ? 2 : r < 100 ? 5 : 10; }
+  function refreshContours() {
+    curvMarks.forEach((m) => m.remove()); curvMarks = [];
+    if (!mapReady) return;
+    try { if (map.getLayer('curv-line')) map.removeLayer('curv-line'); if (map.getSource('curv')) map.removeSource('curv'); } catch (e) { /* */ }
+    if (!curvOn || !slopeGrid || !slopeGrid.zg || !prep) return;
+    const step = curvStep(), lines = PF.contourLines(slopeGrid.zg, step), pj = prep.pj, major = step * 5, feats = [];
+    lines.forEach((l) => {
+      const pts = l.pts.map((p) => pj.toLL(p[0], p[1])), isM = Math.abs(l.z / major - Math.round(l.z / major)) < 1e-6;
+      feats.push({ type: 'Feature', properties: { z: Math.round(l.z), major: isM ? 1 : 0 }, geometry: { type: 'LineString', coordinates: pts } });
+    });
+    try {
+      map.addSource('curv', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
+      map.addLayer({ id: 'curv-line', type: 'line', source: 'curv', paint: { 'line-color': '#6d4c41', 'line-opacity': 0.8, 'line-width': ['case', ['==', ['get', 'major'], 1], 1.6, 0.7] } }, map.getLayer('excl-fill') ? 'excl-fill' : undefined);
+    } catch (e) { fail('curvas de nivel', e); return; }
+    if (typeof maplibregl.Marker !== 'function') return;
+    feats.filter((f) => f.properties.major && f.geometry.coordinates.length > 12).sort((a, b) => b.geometry.coordinates.length - a.geometry.coordinates.length).slice(0, 24).forEach((f) => {
+      const c = f.geometry.coordinates, el = document.createElement('div'); el.className = 'cota'; el.style.cssText = 'background:#efebe9;border-color:#6d4c41;color:#4e342e;font-size:10px;padding:0 3px';
+      el.textContent = f.properties.z + ' m'; curvMarks.push(new maplibregl.Marker({ element: el }).setLngLat(c[Math.floor(c.length / 2)]).addTo(map));
+    });
+  }
+  function toggleContours() {
+    if (!slopeGrid) { toast('Carga primero el MDT (botón «Cargar MDT»)'); ensureMDT(); return; }
+    curvOn = !curvOn; refreshContours(); renderTab();
+    toast(curvOn ? 'Curvas de nivel cada ' + curvStep() + ' m (gruesas cada ' + curvStep() * 5 + ' m)' + (mdt && mdt.src === 'AWS' ? ' · modelo global ~30 m: orientativas' : '') : 'Curvas ocultas', 3500);
+  }
+  function flowData() {
+    if (!slopeGrid || !slopeGrid.zg) return null;
+    if (!flowCache || flowCache.key !== slopeGrid.key) flowCache = Object.assign({ key: slopeGrid.key }, PF.flowAcc(slopeGrid.zg));
+    return flowCache;
+  }
+  function refreshFlow() {
+    if (!mapReady) return;
+    try { if (map.getLayer('flowimg')) map.removeLayer('flowimg'); if (map.getSource('flowimg')) map.removeSource('flowimg'); } catch (e) { /* */ }
+    if (!flowOn || !slopeGrid || !slopeGrid.zg || !prep) return;
+    const g = slopeGrid.zg, F = flowData(), cv = document.createElement('canvas'); cv.width = g.nx; cv.height = g.ny;
+    const cx = cv.getContext('2d'), im = cx.createImageData(g.nx, g.ny), thr = 400;
+    for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
+      const a = F.acc[j * g.nx + i], o = ((g.ny - 1 - j) * g.nx + i) * 4; if (!(a >= thr)) { im.data[o + 3] = 0; continue; }
+      const t = Math.min(1, Math.log(a / thr) / Math.log(40)); im.data[o] = 30 + 20 * (1 - t); im.data[o + 1] = 120 - 60 * t; im.data[o + 2] = 255; im.data[o + 3] = 110 + 140 * t;
+    }
+    cx.putImageData(im, 0, 0); const pj = prep.pj, x1 = g.x0 + (g.nx - 1) * g.cs, y1 = g.y0 + (g.ny - 1) * g.cs;
+    try {
+      map.addSource('flowimg', { type: 'image', url: cv.toDataURL('image/png'), coordinates: [pj.toLL(g.x0, y1), pj.toLL(x1, y1), pj.toLL(x1, g.y0), pj.toLL(g.x0, g.y0)] });
+      map.addLayer({ id: 'flowimg', type: 'raster', source: 'flowimg', paint: { 'raster-opacity': 0.9, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } }, map.getLayer('excl-fill') ? 'excl-fill' : undefined);
+    } catch (e) { fail('escorrentía', e); }
+  }
+  // cauces: polilíneas desde cabeceras hasta salida, solo celdas con área aguas arriba >= thr
+  function streams(thr, minLen) {
+    const g = slopeGrid.zg, F = flowData(), N = g.nx * g.ny, isS = (k) => F.acc[k] >= thr, hasUp = new Uint8Array(N), out = [];
+    for (let k = 0; k < N; k++) if (isS(k) && F.dir[k] >= 0 && isS(F.dir[k])) hasUp[F.dir[k]] = 1;
+    for (let k = 0; k < N; k++) {
+      if (!isS(k) || hasUp[k]) continue; const pts = []; let c = k, guard = 0;
+      while (c >= 0 && isS(c) && guard++ < 5000) { const ci = c % g.nx, cj = (c - ci) / g.nx; pts.push([g.x0 + ci * g.cs, g.y0 + cj * g.cs]); c = F.dir[c]; }
+      let len = 0; for (let q = 1; q < pts.length; q++) len += Math.hypot(pts[q][0] - pts[q - 1][0], pts[q][1] - pts[q - 1][1]);
+      if (len >= minLen && pts.length > 2) out.push(pts);
+    }
+    return out;
+  }
+  function flowReport() {
+    if (!slopeGrid || !slopeGrid.zg || !prep) return '';
+    const g = slopeGrid.zg, F = flowData(), ring = prep.ring; let n = 0, nS = 0, nSteep = 0;
+    for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
+      const k = j * g.nx + i; if (!(g.z[k] === g.z[k]) || !PF.inPoly(g.x0 + i * g.cs, g.y0 + j * g.cs, ring)) continue;
+      n++; if (F.acc[k] >= 1000) { nS++; if (g.sl[k] >= 25) nSteep++; }
+    }
+    const st = streams(1000, 12); let len = 0; st.forEach((p) => { for (let q = 1; q < p.length; q++) len += Math.hypot(p[q][0] - p[q - 1][0], p[q][1] - p[q - 1][1]); });
+    return n ? 'Escorrentía: ' + st.length + ' vaguada(s) de >12 m (≈' + Math.round(len) + ' m en total); ' + (100 * nS / n).toFixed(0) + ' % de la finca recoge >1000 m² de agua' + (nSteep ? ', ' + (100 * nSteep / n).toFixed(0) + ' % con pendiente ≥25 % (riesgo de erosión)' : '') + '.' : '';
+  }
+  function toggleFlow() {
+    if (!slopeGrid) { toast('Carga primero el MDT (botón «Cargar MDT»)'); ensureMDT(); return; }
+    flowOn = !flowOn; refreshFlow(); renderTab();
+    toast(flowOn ? (flowReport() || 'Mapa de escorrentía') + ' Azul = camino del agua (más oscuro = más caudal).' : 'Escorrentía oculta', flowOn ? 9000 : 1500);
+  }
+  function flowToExcl() {
+    if (!slopeGrid || !slopeGrid.zg || !prep) { toast('Carga primero el MDT'); return; }
+    const pj = prep.pj, st = streams(1000, 12).map((p) => { const out = []; p.forEach((q, i) => { if (i % 2 === 0 || i === p.length - 1) out.push(q); }); return out; }).filter((p) => p.length >= 2);
+    const inside = st.filter((p) => p.some((q) => PF.inPoly(q[0], q[1], prep.ring)));
+    if (!inside.length) { toast('No hay vaguadas dentro de la finca con este modelo'); return; }
+    inside.slice(0, 20).forEach((p) => finca.exclusions.push({ kind: 'line', tipo: 'vaguada', coords: p.map((q) => pj.toLL(q[0], q[1])), buffer: 3 }));
+    recalc(); renderTab(); toast(Math.min(20, inside.length) + ' vaguada(s) añadidas como exclusión (3 m a cada lado). Bórralas en Matriz si no las quieres (↶ deshacer).', 7000);
   }
   function toggleSlopeMap() {
     if (!slopeGrid) { toast('Carga primero el MDT (botón «Cargar MDT»)'); ensureMDT(); return; }
@@ -1907,6 +1991,8 @@ details>*:not(summary){margin-bottom:6px}
       '<details><summary>Ángulo ↔ nº de árboles</summary><div id="angchart">' + angChartHTML() + '</div><button class="btn sec" data-act="angcurve">Calcular gráfico</button></details>' +
       '<div class="g2e"><div><label>Pendiente máxima plantable (%) · 0 = sin límite</label><input type="number" step="1" min="0" inputmode="numeric" data-bind="params.slopeMax" value="' + val(p.slopeMax) + '"></div><button class="btn sec" data-act="mdt" style="width:auto;align-self:end">Cargar MDT</button></div>' +
       '<button class="btn sec" data-act="slopemap">' + (slopeOn ? 'Ocultar' : 'Ver') + ' mapa de pendientes' + '</button>' +
+      '<div class="g2"><button class="btn sec" data-act="contours">' + (curvOn ? 'Ocultar' : 'Ver') + ' curvas de nivel</button><button class="btn sec" data-act="flowmap">' + (flowOn ? 'Ocultar' : 'Ver') + ' escorrentía</button></div>' +
+      '<button class="btn sec" data-act="flow-excl">Añadir vaguadas como exclusión (3 m)</button>' +
       '<div class="muted" id="slopeinfo">' + (slopeStat ? (mdt && mdt.src === 'AWS' ? 'Relieve (modelo global ~30 m; CNIG falló: ' + esc(mdt.warn || '') + '): cota ' : 'Relieve (MDT CNIG): cota ') + Math.round(slopeStat.zmin) + '–' + Math.round(slopeStat.zmax) + ' m · pendiente media ' + slopeStat.mean.toFixed(0) + ' %, máx. ' + slopeStat.max.toFixed(0) + ' %' + (p.slopeMax > 0 ? ' · ' + slopeStat.over.toFixed(0) + ' % de la superficie supera el límite' : '') + ' · superficie real sobre el terreno ' + (slopeStat.surf / 1e4).toFixed(2) + ' ha (+' + ((slopeStat.surf / slopeStat.flat - 1) * 100).toFixed(0) + ' % sobre la proyectada); a cinta, ' + fmtM(p.sx) + ' en planta ≈ ' + fmtM(p.sx * Math.sqrt(1 + Math.pow(slopeStat.mean / 100, 2))) + ' sobre el terreno; ladera orientada al ' + aspectName(slopeStat.asp) : 'Sin datos de relieve todavía (pulsa «Cargar MDT»).') + '</div>' +
       '<div id="counts"></div>' +
       '<details><summary>Exclusiones y subzonas</summary>' +
@@ -1916,7 +2002,7 @@ details>*:not(summary){margin-bottom:6px}
       '<button class="btn sec" data-act="excl-poly">Zona excluida (polígono)</button>' +
       '<div class="g2"><button class="btn sec" data-act="excl-saca">Pista de saca</button><button class="btn sec" data-act="excl-carga">Cargadero</button></div>' +
       '<div class="g2e"><select id="zsp">' + optsObj(S, 'castano', (v) => v.name) + '</select><button class="btn sec" style="width:auto" data-act="subzona">Dibujar subzona</button></div>' +
-      (finca.exclusions.map((e, i) => '<div class="sp"><span style="flex:1">' + (e.kind === 'line' ? (e.tipo === 'camino' ? 'Camino de servicio' : e.tipo === 'saca' ? 'Pista de saca' : 'Línea') : (e.tipo === 'cargadero' ? 'Cargadero' : 'Zona excluida')) + ' #' + (i + 1) + '</span>' + (e.kind === 'line' ? '<input type="number" step="0.25" min="0" style="width:64px" data-bind="exclusions.' + i + '.buffer" value="' + val(e.buffer) + '"> m ' : '') + '<button class="mini" data-act="del-excl" data-i="' + i + '">borrar</button></div>').join('')) +
+      (finca.exclusions.map((e, i) => '<div class="sp"><span style="flex:1">' + (e.kind === 'line' ? (e.tipo === 'camino' ? 'Camino de servicio' : e.tipo === 'saca' ? 'Pista de saca' : e.tipo === 'vaguada' ? 'Vaguada / cauce' : 'Línea') : (e.tipo === 'cargadero' ? 'Cargadero' : 'Zona excluida')) + ' #' + (i + 1) + '</span>' + (e.kind === 'line' ? '<input type="number" step="0.25" min="0" style="width:64px" data-bind="exclusions.' + i + '.buffer" value="' + val(e.buffer) + '"> m ' : '') + '<button class="mini" data-act="del-excl" data-i="' + i + '">borrar</button></div>').join('')) +
       (finca.subzonas.map((z, i) => '<div class="sp"><span class="dot" style="background:' + S[z.sp].color + '"></span><span style="flex:1">Subzona ' + esc(S[z.sp].name) + ' #' + (i + 1) + '</span><button class="mini" data-act="del-zona" data-i="' + i + '">borrar</button></div>').join(''));
   }
 
@@ -2133,6 +2219,9 @@ details>*:not(summary){margin-bottom:6px}
       case 'angcurve': if (!prep) break; toast('Calculando ángulos…', 6000); setTimeout(() => { try { angData = PF.angleCurve(prep, finca, 2); } catch (er) { fail('ángulos', er); } const el = $('#angchart'); if (el) el.innerHTML = angChartHTML(); toast('Gráfico calculado', 1500); }, 40); break;
       case 'angpick': { if (!angData) break; const r = b.getBoundingClientRect(), frac = Math.max(0, Math.min(1, ((e.clientX - r.left) / r.width * 300 - 14) / 280)), ang = Math.round(frac * angData.maxA); finca.params.opt = 'fijo'; finca.params.angle = ang; recalc(); renderTab(); toast('Ángulo fijado a ' + ang + '° → ' + res.total + ' árboles', 3500); break; }
       case 'slopemap': toggleSlopeMap(); break;
+      case 'contours': toggleContours(); break;
+      case 'flowmap': toggleFlow(); break;
+      case 'flow-excl': flowToExcl(); break;
       case 'excl-saca': startDraw('excl-saca'); break;
       case 'excl-carga': startDraw('excl-carga'); break;
       case 'auto-lind': autoLinderos(); break;
