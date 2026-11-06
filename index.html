@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>PLANTFINC v2.2</title>
+<title>PLANTFINC v2.3</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
@@ -113,6 +113,7 @@ details>*:not(summary){margin-bottom:6px}
 .badge{width:26px;height:26px;border-radius:50%;border:2px solid #fff;color:#fff;font-weight:700;font-size:.75rem;box-shadow:0 0 0 1px #888;cursor:pointer}
 .e2{display:grid;gap:5px;margin-top:5px}
 .cota{background:#fff;color:#0d47a1;border:1.5px solid #0d47a1;border-radius:6px;padding:1px 5px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:18px;font-weight:700}body.out .muted,body.out label{color:#000;font-size:16px}body.out #st-info{font-size:18px;color:#000;font-weight:600}body.out #stbar,body.out #nbar{border:3px solid #000;padding:12px}
 #stbar,#nbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}#stbar .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}#draft{position:absolute;inset:0;z-index:41;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:12px}#draft.hidden{display:none}#draft .card{background:#fff;border-radius:12px;padding:12px;display:grid;gap:8px;width:100%;max-height:94%;overflow:auto}#draft textarea{width:100%;padding:6px;border:1px solid #bbb;border-radius:8px}
 #nform,#nview{position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}#nform.hidden,#nview.hidden{display:none}#nform .card,#nview .card{background:#fff;border-radius:12px;padding:12px;display:grid;gap:8px;width:100%;max-width:420px;max-height:90%;overflow:auto}#nform textarea{width:100%;font:inherit;padding:8px;border:1px solid #bbb;border-radius:8px}
 #msbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
@@ -135,7 +136,7 @@ details>*:not(summary){margin-bottom:6px}
   <span id="finca-title" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;justify-self:center;grid-column:2;cursor:pointer">PLANTFINC</span>
   <button class="hb hidden" id="h-more" aria-label="Más opciones">&#x22EF;</button>
 </header>
-<input type="file" id="file" accept=".json,.geojson,application/geo+json,application/json" class="hidden">
+<input type="file" id="file" accept=".json,.geojson,.kml,.gpx,application/geo+json,application/json,text/xml" class="hidden">
 
 <div id="app">
   <div id="map"></div>
@@ -169,6 +170,7 @@ details>*:not(summary){margin-bottom:6px}
   <div class="menu hidden" id="menu">
     <button class="hbtn" id="btn-base">Mapa: OpenStreetMap</button>
     <button class="hbtn" id="btn-3d">Relieve 3D</button>
+    <button class="hbtn" id="btn-out">Modo exterior (letra grande)</button>
     <button class="hbtn" id="btn-exag">Exagerar relieve ×1.5</button>
     <button class="hbtn on" id="btn-gps">GPS activo</button>
   </div>
@@ -1142,10 +1144,10 @@ details>*:not(summary){margin-bottom:6px}
     $('#dr-f').innerHTML = [['nombre', 'Nombre / razón social'], ['nif', 'NIF'], ['dir', 'Domicilio'], ['tel', 'Teléfono'], ['mail', 'Correo'], ['ref', 'Ref. SIGPAC / catastral'], ['fecha', 'Fecha prevista (opcional)']].map((x) => '<div><label>' + x[1] + '</label><input data-o="' + x[0] + '" value="' + esc(o[x[0]] || '') + '"></div>').join('');
     const upd = () => { $('#dr-t').value = draftText(o); };
     $('#dr-f').oninput = (e) => { const k = e.target.dataset.o; if (k) { o[k] = e.target.value; upd(); try { persist(); } catch (x) { /* */ } } };
-    upd(); $('#draft').classList.remove('hidden');
+    window.__drFile = null; upd(); $('#draft').classList.remove('hidden');
   }
   $('#dr-x').onclick = () => $('#draft').classList.add('hidden');
-  $('#dr-dl').onclick = () => download('borrador-comunicacion-' + slug(finca.name) + '.txt', '﻿' + $('#dr-t').value.replace(/\n/g, '\r\n'), 'text/plain;charset=utf-8');
+  $('#dr-dl').onclick = () => download(window.__drFile || ('borrador-comunicacion-' + slug(finca.name) + '.txt'), '﻿' + $('#dr-t').value.replace(/\n/g, '\r\n'), 'text/plain;charset=utf-8');
   $('#dr-cp').onclick = () => { try { navigator.clipboard.writeText($('#dr-t').value).then(() => toast('Copiado', 1500)); } catch (e) { $('#dr-t').select(); document.execCommand('copy'); toast('Copiado', 1500); } };
   /* ---------- v2.0: mapa sin conexión ---------- */
   async function downloadOffline() {
@@ -1195,6 +1197,17 @@ details>*:not(summary){margin-bottom:6px}
   function toggleCrews() {
     if (!(Math.round(+finca.crewN || 0) > 1)) { toast('Indica primero el nº de cuadrillas (2-8)'); return; }
     crewOn = !crewOn; refreshMap(); renderTab(); toast(crewOn ? 'Árboles coloreados por cuadrilla (franjas de filas contiguas con igual nº de pies)' : 'Colores por especie', 3500);
+  }
+  function openText(title, text, file) {
+    $('#dr-f').innerHTML = '<b style="grid-column:1/-1">' + esc(title) + '</b>'; $('#dr-f').oninput = null; $('#dr-t').value = text; window.__drFile = file; $('#draft').classList.remove('hidden');
+  }
+  function plantaPedido() {
+    if (!prep || !res.total) { toast('Primero elige la parcela y calcula la matriz'); return; }
+    const E = finca.econ || {}, rp = (E.marras == null || E.marras === '' ? 8 : +E.marras) / 100, c = res.counts, d = new Date();
+    let tot = 0, o = 'PEDIDO DE PLANTA — ' + finca.name + ' (' + C[finca.concello].name + ')\nFecha: ' + d.toLocaleDateString('es-ES') + '\n\n';
+    Object.keys(c).forEach((k) => { const n = c[k], extra = Math.ceil(n * rp), q = n + extra; tot += q; o += S[k].name + ': ' + n + ' + ' + extra + ' de reposición (' + Math.round(rp * 100) + ' %) = ' + q + ' plantas\n'; });
+    o += '\nTOTAL: ' + tot + ' plantas\n\nCondiciones: planta en envase forestal, con pasaporte fitosanitario y material forestal de reproducción autorizado, altura mínima ______ cm. Fecha de entrega: ____________. Lugar de entrega: ' + finca.name + '.\n';
+    openText('Pedido de planta (editable)', o, 'pedido-planta-' + slug(finca.name) + '.txt');
   }
   function marrasList() { return treeTable().filter((r) => r.st === 'm'); }
   function marrasSummary(M) { const c = {}; M.forEach((r) => { c[r.sp] = (c[r.sp] || 0) + 1; }); return Object.keys(c).map((k) => c[k] + ' ' + S[k].name).join(', '); }
@@ -1906,6 +1919,9 @@ details>*:not(summary){margin-bottom:6px}
     }, intento === 1 ? 9000 : 8000);
     check(1);
   }
+  const setOut = (on) => { document.body.classList.toggle('out', on); const b = $('#btn-out'); if (b) b.textContent = on ? 'Modo exterior: ACTIVO' : 'Modo exterior (letra grande)'; };
+  setOut(!!store.out);
+  $('#btn-out').onclick = () => { store.out = !store.out; setOut(store.out); try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) { /* */ } toast(store.out ? 'Modo exterior: botones y letra grandes' : 'Modo normal', 2000); };
   const EXAG = [1, 1.5, 2, 3];
   let exagI = Math.max(0, EXAG.indexOf(+store.exag)); if (store.exag == null) exagI = 1;
   const setExagLabel = () => { const b = $('#btn-exag'); if (b) b.textContent = 'Exagerar relieve ×' + EXAG[exagI]; };
@@ -2146,7 +2162,7 @@ details>*:not(summary){margin-bottom:6px}
       '<details><summary>Avance, cuadrillas y marras</summary>' +
       '<div class="g2"><div><label>Nº de cuadrillas (2-8)</label><input type="number" min="1" max="8" step="1" inputmode="numeric" data-bind="crewN" value="' + val(finca.crewN) + '"></div><button class="btn sec" data-act="crewview" style="align-self:end">' + (crewOn ? 'Quitar colores' : 'Ver en el mapa') + '</button></div>' +
       '<div id="avance"></div>' +
-      '<div class="g2"><button class="btn sec" data-act="marras-csv">Marras CSV</button><button class="btn sec" data-act="marras-gpx">Marras GPX</button></div></details>';
+      '<div class="g2"><button class="btn sec" data-act="planta">Planta a pedir</button><button class="btn sec" data-act="marras-csv">Marras CSV</button><button class="btn sec" data-act="marras-gpx">Marras GPX</button></div></details>';
   }
 
   function tabNorma() {
@@ -2215,14 +2231,6 @@ details>*:not(summary){margin-bottom:6px}
       recalc();
     } else if (t.dataset.norm) {
       const a = t.dataset.norm.split(':'); norm[a[0]][a[1]] = num(v, 0); recalc();
-    } else if (t.id === 'file') {
-      const f = t.files && t.files[0]; if (!f) return;
-      const rd = new FileReader();
-      rd.onload = () => {
-        try { setRing(PF.ringFromGeoJSON(JSON.parse(rd.result)), f.name.replace(/\.[^.]+$/, '')); toast('Finca importada'); }
-        catch (err) { toast('Importación fallida: ' + err.message, 6000); }
-      };
-      rd.readAsText(f); t.value = '';
     }
   });
 
@@ -2290,12 +2298,31 @@ details>*:not(summary){margin-bottom:6px}
     download('plantfinc-' + slug(finca.name) + '.geojson', JSON.stringify({ type: 'FeatureCollection', name: finca.name, features: F }), 'application/geo+json');
     toast('GeoJSON exportado: finca, linderos, ' + res.total + ' árboles, exclusiones, cotas y referencias', 4500);
   }
+  function ringFromXML(txt) {
+    const d = new DOMParser().parseFromString(txt, 'text/xml'); if (d.querySelector('parsererror')) throw new Error('XML no válido');
+    let pts = [];
+    const kc = d.getElementsByTagNameNS('*', 'coordinates');
+    if (kc.length) {
+      let best = null; for (let i = 0; i < kc.length; i++) { const p = kc[i].textContent.trim().split(/\s+/).map((s) => s.split(',').map(Number)).filter((a) => a.length >= 2 && isFinite(a[0]) && isFinite(a[1])).map((a) => [a[0], a[1]]); if (!best || p.length > best.length) best = p; }
+      pts = best || [];
+    } else {
+      ['trkpt', 'rtept', 'wpt'].some((t) => { const e = d.getElementsByTagNameNS('*', t); if (e.length >= 3) { pts = Array.prototype.map.call(e, (x) => [+x.getAttribute('lon'), +x.getAttribute('lat')]); return true; } return false; });
+    }
+    if (pts.length > 3 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 1e-9) pts.pop();
+    if (pts.length < 3) throw new Error('no se encontró un contorno con 3 o más puntos');
+    if (pts.some((p) => Math.abs(p[0]) > 180 || Math.abs(p[1]) > 90)) throw new Error('coordenadas no válidas (se esperan lon/lat WGS84)');
+    return pts;
+  }
   function fileImport(e) {
     const f = e.target.files && e.target.files[0]; if (!f) return;
     const rd = new FileReader();
     rd.onload = () => {
       try { const j0 = JSON.parse(rd.result); if (j0 && j0.app === 'plantfinc' && j0.store) { restoreAll(rd.result); return; } } catch (er0) { /* */ }
-      try { setRing(PF.ringFromGeoJSON(JSON.parse(rd.result)), f.name.replace(/\.[^.]+$/, '')); toast('Finca importada'); }
+      try {
+        const nm = f.name.replace(/\.[^.]+$/, ''), txt = String(rd.result).replace(/^\ufeff/, '');
+        if (txt.trim().charAt(0) === '<') { setRing(ringFromXML(txt), nm); toast('Finca importada desde ' + f.name.split('.').pop().toUpperCase()); }
+        else { setRing(PF.ringFromGeoJSON(JSON.parse(txt)), nm); toast('Finca importada'); }
+      }
       catch (err) { toast('Importación fallida: ' + err.message, 6000); }
     };
     rd.readAsText(f); e.target.value = '';
@@ -2343,6 +2370,7 @@ details>*:not(summary){margin-bottom:6px}
       case 'slopemap': toggleSlopeMap(); break;
       case 'contours': toggleContours(); break;
       case 'crewview': toggleCrews(); break;
+      case 'planta': plantaPedido(); break;
       case 'marras-csv': exportMarrasCSV(); break;
       case 'marras-gpx': exportMarrasGPX(); break;
       case 'flowmap': toggleFlow(); break;
