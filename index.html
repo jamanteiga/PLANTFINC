@@ -1578,7 +1578,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     msInfo('Cota: ' + fmtM(d) + ' — un nuevo punto borra esta medida.'); recalc();
   }
   /* ---------- linderos = tramos continuos con las mismas propiedades ---------- */
-  const edgeKey = (e) => [e.tipo, e.vecino == null || e.vecino === '' ? '' : e.vecino, e.franja ? 1 : 0, e.franja ? e.especie : ''].join('|');
+  const edgeKey = (e) => [e.off ? 1 : 0, e.fijo == null || e.fijo === '' ? '' : e.fijo, e.tipo, e.vecino == null || e.vecino === '' ? '' : e.vecino, e.franja ? 1 : 0, e.franja ? e.especie : ''].join('|');
   function runs() {
     if (!finca || !finca.ring || finca.ring.length < 3) return [];
     PF.ensureEdges(finca);
@@ -2331,7 +2331,10 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
         return '<div class="erow"><div class="e1"><button class="badge" style="background:' + col + '" data-act="hl" data-i="' + ri + '">' + (ri + 1) + '</button><span class="elen">' + r.len.toFixed(0) + ' m</span>' +
           '<select data-run="' + ri + ':tipo">' + optsObj(L, e.tipo, (v) => v.label) + '</select>' +
           '<select data-run="' + ri + ':arbol">' + arbSel(edgeArb(e)) + '</select></div>' +
-          (ri === openEdge ? '<div class="e2"><div><label>Dist. fila del vecino (m), opcional</label><input type="number" step="any" min="0" inputmode="decimal" data-run="' + ri + ':vecino" value="' + val(e.vecino) + '" placeholder="si ≥ mínimo legal, se usa"></div>' +
+          (ri === openEdge ? '<div class="e2"><div class="g2"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-runchk="' + ri + ':off"' + (e.off ? '' : ' checked') + '> Aplicar retranqueo en este linde</label>' +
+            '<div><label>Distancia propia (m)</label><input type="number" step="any" min="0" inputmode="decimal" data-run="' + ri + ':fijo" value="' + val(e.fijo) + '" placeholder="sustituye a la legal"></div></div>' +
+            (e.off ? '<div class="muted">⚠ Linde sin retranqueo: se planta hasta el borde (0 m).</div>' : (e.fijo != null && e.fijo !== '' && +e.fijo < n.fr ? '<div class="muted">⚠ Distancia propia inferior al mínimo legal (' + n.fr + ' m frondosa / ' + n.resto + ' m otras): bajo tu responsabilidad (acuerdo con el vecino, etc.).</div>' : '')) +
+            '<div><label>Dist. fila del vecino (m), opcional</label><input type="number" step="any" min="0" inputmode="decimal" data-run="' + ri + ':vecino" value="' + val(e.vecino) + '" placeholder="si ≥ mínimo legal, se usa"></div>' +
             '<div class="muted">Mínimo legal: frondosa ' + n.fr + ' m · eucalipto/otras ' + n.resto + ' m · ' + r.edges.length + ' lado(s) del contorno</div></div>' : '') + '</div>';
       }).join('');
   }
@@ -2495,9 +2498,13 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
       setPath(finca, t.dataset.bind, v);
       if (t.dataset.bind === 'concello') { renderTab(); }
       recalc();
+    } else if (t.dataset.runchk) {
+      const a = t.dataset.runchk.split(':'), R = runs()[+a[0]]; if (!R) return;
+      R.edges.forEach((i) => { finca.edges[i].off = !t.checked; });
+      recalc(); openEdge = -1; renderTab();
     } else if (t.dataset.run) {
       const a = t.dataset.run.split(':'), R = runs()[+a[0]], f = a[1]; if (!R) return;
-      R.edges.forEach((i) => { const e = finca.edges[i]; if (f === 'arbol') { if (v === 'euc') e.franja = false; else { e.franja = true; e.especie = v; } } else e[f] = v; });
+      R.edges.forEach((i) => { const e = finca.edges[i]; if (f === 'fijo') { e.fijo = (v === '' || v == null) ? null : +v; } else if (f === 'arbol') { if (v === 'euc') e.franja = false; else { e.franja = true; e.especie = v; } } else e[f] = v; });
       recalc(); if (f !== 'vecino') { openEdge = -1; renderTab(); }
     } else if (t.dataset.global) {
       if (!v) return;

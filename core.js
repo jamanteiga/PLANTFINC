@@ -134,6 +134,8 @@
       var e = finca.edges[i];
       var t = norm[e.tipo] || LINDEROS[e.tipo] || LINDEROS.forestal;
       var base = +t[groupKey(sp)];
+      if (e.off) { cache[key] = 0; return 0; }
+      if (e.fijo !== null && e.fijo !== undefined && e.fijo !== '' && !isNaN(+e.fijo)) { cache[key] = Math.max(0, +e.fijo); return cache[key]; }
       var v = (e.vecino === null || e.vecino === '' || e.vecino === undefined) ? null : +e.vecino;
       // distancia del vecino si es mayor o igual al mínimo legal; si no, el mínimo legal
       var val = (v !== null && !isNaN(v) && v >= base) ? v : base;
