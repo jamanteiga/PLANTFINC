@@ -106,7 +106,7 @@ details>*:not(summary){margin-bottom:6px}
 #sgbar{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:24;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px;display:grid;gap:6px}
 #sgbar .g3{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:6px}
 .btn:disabled{opacity:.45}
-.enum{width:20px;height:20px;border-radius:50%;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.6);pointer-events:none}
+.enum{width:26px;height:26px;font-size:13px;cursor:pointer;border-radius:50%;color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.7);pointer-events:auto;touch-action:manipulation}#lpop{position:absolute;left:8px;right:8px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:26;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.35);padding:10px;display:grid;gap:6px;max-width:460px;margin:0 auto}#lpop.hidden{display:none}#lpop select,#lpop input[type=number]{width:100%}
 .erow{border:1px solid var(--border);border-radius:8px;padding:4px 6px}
 .e1{display:grid;grid-template-columns:28px 40px 1fr auto;gap:6px;align-items:center}
 .elen{font-size:.78rem;color:#555}
@@ -198,6 +198,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     <label class="chk" data-m="move"><input type="checkbox" id="tt-adapt" checked> Adaptar la matriz: recalcula con este árbol como nodo</label>
     <div class="g2" data-m="fill"><button class="btn" id="tt-fillall">Añadir todas</button><button class="btn sec" id="tt-fillcalc">Recalcular huecos</button></div>
   </div>
+  <div id="lpop" class="hidden"></div>
   <div id="stbar" class="hidden">
     <div id="st-info" class="muted"></div>
     <div class="g3"><button class="btn sec" id="st-prev">&#x25C0;</button><button class="btn" id="st-ok">&#x2713; Plantado</button><button class="btn sec" id="st-next">&#x25B6;</button></div>
@@ -1607,9 +1608,34 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     runs().forEach((r, ri) => {
       const i = r.label, p = finca.ring[i], q = finca.ring[(i + 1) % finca.ring.length], el = document.createElement('div');
       el.className = 'enum'; el.textContent = ri + 1; el.style.background = (L[finca.edges[i].tipo] || L.libre).color;
+      el.addEventListener('click', (ev) => { ev.stopPropagation(); openLinde(ri); });
       eMarks.push(new maplibregl.Marker({ element: el }).setLngLat([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]).addTo(map));
     });
   }
+  let lpFirst = -1;
+  function lpopHTML(ri) {
+    const r = runs()[ri]; if (!r) return '';
+    const e = finca.edges[r.edges[0]], n = norm[e.tipo] || norm.libre, col = (L[e.tipo] || L.libre).color;
+    const arbSel = ARB().map((x) => '<option value="' + x[0] + '"' + (x[0] === edgeArb(e) ? ' selected' : '') + '>' + esc(x[1]) + '</option>').join('');
+    return '<div style="display:flex;align-items:center;gap:8px"><span class="enum" style="background:' + col + ';pointer-events:none">' + (ri + 1) + '</span><b>Linde ' + (ri + 1) + '</b><span class="muted">' + r.len.toFixed(0) + ' m · mín. legal ' + n.fr + ' (frond.) / ' + n.resto + ' m</span><button class="btn sec" data-lp="close" style="margin-left:auto;width:auto;padding:4px 12px">✕</button></div>' +
+      '<select data-run="' + ri + ':tipo">' + optsObj(L, e.tipo, (v) => v.label) + '</select>' +
+      '<select data-run="' + ri + ':arbol">' + arbSel + '</select>' +
+      '<div class="g2"><div><label>Distancia propia (m)</label><input type="number" step="any" min="0" inputmode="decimal" data-run="' + ri + ':fijo" value="' + val(e.fijo) + '" placeholder="legal"></div>' +
+      '<label style="display:flex;gap:6px;align-items:center;align-self:end"><input type="checkbox" data-runchk="' + ri + ':off"' + (e.off ? '' : ' checked') + '> Aplicar retranqueo</label></div>' +
+      (e.off ? '<div class="muted">⚠ Sin retranqueo: se planta hasta el borde.</div>' : (e.fijo != null && e.fijo !== '' && +e.fijo < n.fr ? '<div class="muted">⚠ Inferior al mínimo legal: bajo tu responsabilidad.</div>' : ''));
+  }
+  function openLinde(ri) {
+    const r = runs()[ri]; if (!r) return;
+    if (typeof st !== 'undefined' && st) return;
+    lpFirst = r.edges[0]; $('#lpop').innerHTML = lpopHTML(ri); $('#lpop').classList.remove('hidden'); openEdge = ri; flashRun(ri);
+  }
+  function lpopRefresh() {
+    if (lpFirst < 0 || $('#lpop').classList.contains('hidden')) return;
+    const ri = runs().findIndex((r) => r.edges.indexOf(lpFirst) >= 0);
+    if (ri < 0) { $('#lpop').classList.add('hidden'); return; }
+    $('#lpop').innerHTML = lpopHTML(ri);
+  }
+  function closeLinde() { lpFirst = -1; $('#lpop').classList.add('hidden'); }
   function flashRun(ri) {
     const r = runs()[ri]; if (!r) return;
     hlSet = new Set(r.edges); refreshMap(); clearTimeout(hlT); hlT = setTimeout(() => { hlSet = new Set(); refreshMap(); }, 3000);
@@ -1722,7 +1748,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
       $('#menu').classList.add('hidden');
       if (!onList && finca.ring) {
         const pt = e.point, fs = map.queryRenderedFeatures([[pt.x - 12, pt.y - 12], [pt.x + 12, pt.y + 12]], { layers: ['edges'] });
-        if (fs.length) { const ei = +fs[0].properties.i; openEdge = runs().findIndex((r) => r.edges.indexOf(ei) >= 0); flashRun(openEdge); openSheet('linderos'); }
+        if (fs.length) { const ei = +fs[0].properties.i; openEdge = runs().findIndex((r) => r.edges.indexOf(ei) >= 0); openLinde(openEdge); }
       }
       return;
     }
@@ -2492,7 +2518,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     if (el.type === 'number') return el.value === '' ? null : +el.value;
     return el.value;
   }
-  $('#tab-content').addEventListener('change', (e) => {
+  const onTabChange = (e) => {
     const t = e.target, v = readVal(t);
     if (t.dataset.bind) {
       setPath(finca, t.dataset.bind, v);
@@ -2518,7 +2544,11 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     } else if (t.dataset.norm) {
       const a = t.dataset.norm.split(':'); norm[a[0]][a[1]] = num(v, 0); recalc();
     }
-  });
+    lpopRefresh();
+  };
+  $('#tab-content').addEventListener('change', onTabChange);
+  $('#lpop').addEventListener('change', onTabChange);
+  $('#lpop').addEventListener('click', (e) => { if (e.target.dataset.lp === 'close') closeLinde(); });
 
   /* ---------- deshacer / rehacer ---------- */
   let hist = [], histI = -1, histSkip = false;
