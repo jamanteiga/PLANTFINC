@@ -37,10 +37,10 @@
 
   var CONCELLOS = {
     abegondo: { name: 'Abegondo',    ferrado: 436 },
-    oza:      { name: 'Oza-Cesuras', ferrado: null },
-    curtis:   { name: 'Curtis',      ferrado: null },
-    aranga:   { name: 'Aranga',      ferrado: null },
-    vilasantar: { name: 'Vilasantar', ferrado: null }
+    oza:      { name: 'Oza-Cesuras', ferrado: 436 },
+    curtis:   { name: 'Curtis',      ferrado: 536 },
+    aranga:   { name: 'Aranga',      ferrado: 436 },
+    vilasantar: { name: 'Vilasantar', ferrado: 536 }
   };
 
   function defaultNorm() {
