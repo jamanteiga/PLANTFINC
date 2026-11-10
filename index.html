@@ -1583,19 +1583,28 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
   function runs() {
     if (!finca || !finca.ring || finca.ring.length < 3) return [];
     PF.ensureEdges(finca);
-    const n = finca.ring.length, E = finca.edges, len = PF.stats(finca.ring).lengths;
+    const n = finca.ring.length, E = finca.edges, len = PF.stats(finca.ring).lengths, R = finca.ring;
+    const k = Math.cos(R[0][1] * Math.PI / 180);
+    const brg = (i) => { const p = R[i], q = R[(i + 1) % n]; return Math.atan2((q[1] - p[1]), (q[0] - p[0]) * k); };
+    // se corta en cada esquina real (giro > 30°) o al cambiar de tipo: cada lado de la finca es un linde
+    const brk = (i) => { const j = (i + n - 1) % n; if (edgeKey(E[i]) !== edgeKey(E[j])) return true; let d = Math.abs(brg(i) - brg(j)); if (d > Math.PI) d = 2 * Math.PI - d; return d > 0.5236; };
+    const mk = (edges) => { const r = { edges }; let tot = 0; edges.forEach((i) => { tot += len[i]; }); r.len = tot; let acc = 0; r.label = edges[0]; for (let q = 0; q < edges.length; q++) { acc += len[edges[q]]; if (acc >= tot / 2) { r.label = edges[q]; break; } } return r; };
     let st = -1;
-    for (let i = 0; i < n; i++) if (edgeKey(E[i]) !== edgeKey(E[(i + n - 1) % n])) { st = i; break; }
-    const out = [];
-    const close = (r) => { let tot = 0; r.edges.forEach((i) => { tot += len[i]; }); r.len = tot; let acc = 0; r.label = r.edges[0]; for (let k = 0; k < r.edges.length; k++) { acc += len[r.edges[k]]; if (acc >= tot / 2) { r.label = r.edges[k]; break; } } out.push(r); };
-    if (st < 0) { close({ edges: Array.from({ length: n }, (_, i) => i) }); return out; }
-    let cur = null;
-    for (let k = 0; k < n; k++) {
-      const i = (st + k) % n;
-      if (!cur || edgeKey(E[i]) !== edgeKey(E[cur.edges[0]])) { if (cur) close(cur); cur = { edges: [] }; }
-      cur.edges.push(i);
+    for (let i = 0; i < n; i++) if (brk(i)) { st = i; break; }
+    let out = [];
+    if (st < 0) out.push(mk(Array.from({ length: n }, (_, i) => i)));
+    else {
+      let cur = null;
+      for (let q = 0; q < n; q++) { const i = (st + q) % n; if (!cur || brk(i)) { if (cur) out.push(mk(cur)); cur = []; } cur.push(i); }
+      out.push(mk(cur));
     }
-    close(cur);
+    // mínimo lógico: 4 lindes (si la finca tiene al menos 4 lados) → se parte el más largo
+    while (out.length < Math.min(4, n)) {
+      let bi = -1, bl = 0; out.forEach((r, ix) => { if (r.edges.length > 1 && r.len > bl) { bl = r.len; bi = ix; } });
+      if (bi < 0) break;
+      const r = out[bi], h2 = Math.ceil(r.edges.length / 2);
+      out.splice(bi, 1, mk(r.edges.slice(0, h2)), mk(r.edges.slice(h2)));
+    }
     return out;
   }
   const ARB = () => [['euc', 'Sin franja (mismo árbol)']].concat(Object.keys(S).filter((k) => S[k].kind !== 'euc').map((k) => [k, S[k].name]));
@@ -2347,7 +2356,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
   function tabLinderos() {
     if (!finca.ring) return '<div class="muted">Elige primero la parcela en el mapa SIGPAC (pestaña Finca).</div>';
     const R = runs(), arbSel = (sel) => ARB().map((x) => '<option value="' + x[0] + '"' + (x[0] === sel ? ' selected' : '') + '>' + esc(x[1]) + '</option>').join('');
-    return '<div class="muted">' + R.length + ' lindero' + (R.length === 1 ? '' : 's') + ' (cada tramo continuo con el mismo tipo es uno solo). Usa «Definir tramo» para marcar en el mapa dónde está el río, la pista, la carretera o el vecino.</div>' +
+    return '<div class="muted">' + R.length + ' lindero' + (R.length === 1 ? '' : 's') + ' (uno por cada lado de la finca; los lados rectos seguidos del mismo tipo se agrupan). Usa «Definir tramo» para marcar en el mapa dónde está el río, la pista, la carretera o el vecino.</div>' +
       '<button class="btn" data-act="tramo">&#x2702;&#xFE0F; Definir tramo en el mapa</button>' +
       '<button class="btn sec" data-act="auto-lind">&#x1F916; Clasificar linderos automáticamente (SIGPAC + OpenStreetMap)</button>' +
       '<div class="g2"><div><label>Árbol en TODOS los límites</label><select data-global="arbol"><option value="">— elegir —</option>' + arbSel(edgeArb(finca.edges[0]) === 'euc' && finca.edges.every((x) => !x.franja) ? 'euc' : '') + '</select></div>' +
