@@ -39,7 +39,8 @@
     abegondo: { name: 'Abegondo',    ferrado: 436 },
     oza:      { name: 'Oza-Cesuras', ferrado: null },
     curtis:   { name: 'Curtis',      ferrado: null },
-    aranga:   { name: 'Aranga',      ferrado: null }
+    aranga:   { name: 'Aranga',      ferrado: null },
+    vilasantar: { name: 'Vilasantar', ferrado: null }
   };
 
   function defaultNorm() {
