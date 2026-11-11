@@ -420,7 +420,7 @@
   // Busca ángulo y desplazamiento de la retícula que maximizan el nº de árboles.
 
   // Filas siguiendo curvas de nivel. zg = {x0,y0,cs,nx,ny,z(Float32Array, NaN fuera)}; dz = desnivel entre filas (m)
-  function contourTrees(prep, finca, zg, dz) {
+  function contourTreesDz(prep, finca, zg, dz) {
     var P = finca.params, sx = Math.max(0.5, +P.sx), dmin = Math.max(0.5, +P.dmin || 1.5), ev = makeEval(prep, finca);
     var nx = zg.nx, ny = zg.ny, cs = zg.cs, z = zg.z, x0 = zg.x0, y0 = zg.y0, i, j, zmin = Infinity, zmax = -Infinity;
     for (i = 0; i < z.length; i++) if (z[i] === z[i]) { if (z[i] < zmin) zmin = z[i]; if (z[i] > zmax) zmax = z[i]; }
@@ -483,6 +483,84 @@
     return { trees: trees, counts: counts, total: trees.length, rows: row };
   }
 
+
+  // Filas siguiendo las curvas de nivel con la separación entre filas medida sobre el terreno (P.terr 'real'),
+  // en planta ('plano') o por desnivel constante ('dz', método antiguo). dz = desnivel típico solo para numerar filas.
+  function contourTrees(prep, finca, zg, dz) {
+    var P = finca.params, mode = P.terr || 'real';
+    if (mode === 'dz') return contourTreesDz(prep, finca, zg, dz);
+    var sx = Math.max(0.5, +P.sx), S = Math.max(0.5, +P.sy), dmin = Math.max(0.5, +P.dmin || 1.5), ev = makeEval(prep, finca);
+    var nx = zg.nx, ny = zg.ny, cs = zg.cs, z = zg.z, x0 = zg.x0, y0 = zg.y0, i, j, zmin = Infinity, zmax = -Infinity, real = mode === 'real';
+    for (i = 0; i < z.length; i++) if (z[i] === z[i]) { if (z[i] < zmin) zmin = z[i]; if (z[i] > zmax) zmax = z[i]; }
+    var trees = [], H = {}, cell = Math.max(S, dmin), step = Math.min(0.25, Math.max(0.08, 0.04 * S));
+    if (!(zmax > zmin)) return { trees: [], counts: {}, total: 0, rows: 0 };
+    var ncell = nx * ny; while (ncell * ((zmax - zmin) / step) > 4e7) step *= 1.5;
+    var rowDz = Math.max(0.25, +dz || S * 0.3);
+    function ok(x, y, lv) {
+      var cx = Math.floor(x / cell), cy = Math.floor(y / cell), a, b, k, q, t, dh, dd;
+      for (a = -1; a <= 1; a++) for (b = -1; b <= 1; b++) {
+        k = H[(cx + a) + ',' + (cy + b)]; if (!k) continue;
+        for (q = 0; q < k.length; q++) {
+          t = k[q]; dh = Math.hypot(t.x - x, t.y - y);
+          if (dh < dmin - 1e-9) return false;
+          if (t.lv !== lv) { dd = real ? Math.sqrt(dh * dh + (t.lv - lv) * (t.lv - lv)) : dh; if (dd < S * 0.97) return false; }
+        }
+      }
+      return true;
+    }
+    function put(t) { var k = Math.floor(t.x / cell) + ',' + Math.floor(t.y / cell); (H[k] || (H[k] = [])).push(t); }
+    var lv, ri = {};
+    for (lv = zmin + step / 2; lv < zmax; lv += step) {
+      var nodes = {};
+      var node = function (key, ax, ay, bx, by, va, vb) {
+        if (!nodes[key]) { var t = (lv - va) / (vb - va); nodes[key] = { p: [ax + (bx - ax) * t, ay + (by - ay) * t], n: [] }; }
+        return key;
+      };
+      var link = function (a, b) { nodes[a].n.push(b); nodes[b].n.push(a); };
+      for (j = 0; j < ny - 1; j++) for (i = 0; i < nx - 1; i++) {
+        var va = z[j * nx + i], vb = z[j * nx + i + 1], vc = z[(j + 1) * nx + i + 1], vd = z[(j + 1) * nx + i];
+        if (!(va === va && vb === vb && vc === vc && vd === vd)) continue;
+        if ((va < lv) === (vb < lv) && (vb < lv) === (vc < lv) && (vc < lv) === (vd < lv)) continue;
+        var X = x0 + i * cs, Y = y0 + j * cs, ks = [];
+        if ((va < lv) !== (vb < lv)) ks.push(node('h' + i + ',' + j, X, Y, X + cs, Y, va, vb));
+        if ((vb < lv) !== (vc < lv)) ks.push(node('v' + (i + 1) + ',' + j, X + cs, Y, X + cs, Y + cs, vb, vc));
+        if ((vd < lv) !== (vc < lv)) ks.push(node('h' + i + ',' + (j + 1), X, Y + cs, X + cs, Y + cs, vd, vc));
+        if ((va < lv) !== (vd < lv)) ks.push(node('v' + i + ',' + j, X, Y, X, Y + cs, va, vd));
+        if (ks.length === 2) link(ks[0], ks[1]); else if (ks.length === 4) { link(ks[0], ks[1]); link(ks[2], ks[3]); }
+      }
+      var keys = Object.keys(nodes); if (!keys.length) continue;
+      var seen = {}, chains = [];
+      var walk = function (s) {
+        var path = [], cur = s, prev = null;
+        while (cur && !seen[cur]) {
+          seen[cur] = 1; path.push(nodes[cur].p);
+          var nx2 = null, n = nodes[cur].n, q;
+          for (q = 0; q < n.length; q++) if (n[q] !== prev && !seen[n[q]]) { nx2 = n[q]; break; }
+          prev = cur; cur = nx2;
+        }
+        return path;
+      };
+      keys.forEach(function (k) { if (!seen[k] && nodes[k].n.length === 1) chains.push(walk(k)); });
+      keys.forEach(function (k) { if (!seen[k]) chains.push(walk(k)); });
+      var rj = Math.floor((lv - zmin) / rowDz);
+      chains.forEach(function (ch) {
+        if (ch.length < 2) return;
+        var pos = 0, next = 0, s;
+        for (s = 1; s < ch.length; s++) {
+          var ax = ch[s - 1][0], ay = ch[s - 1][1], bx = ch[s][0], by = ch[s][1], L = Math.hypot(bx - ax, by - ay);
+          if (L < 1e-9) continue;
+          while (next <= pos + L) {
+            var t = (next - pos) / L, px = ax + (bx - ax) * t, py = ay + (by - ay) * t, sp = ev(px, py);
+            if (sp && ok(px, py, lv)) { var tr = { x: px, y: py, sp: sp, i: (ri[rj] = (ri[rj] || 0) + 1) - 1, j: rj, lv: lv, z: lv }; put(tr); trees.push(tr); next += sx; }
+            else next += Math.min(sx, 0.5);
+          }
+          pos += L;
+        }
+      });
+    }
+    var counts = {}, rs = {}; trees.forEach(function (t) { counts[t.sp] = (counts[t.sp] || 0) + 1; rs[t.j] = 1; });
+    return { trees: trees, counts: counts, total: trees.length, rows: Object.keys(rs).length };
+  }
 
   // Curvas de nivel por marching squares. zg={x0,y0,cs,nx,ny,z}; devuelve [{z, pts:[[x,y],...]}] (coordenadas locales)
   function contourLines(zg, step) {

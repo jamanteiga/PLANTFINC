@@ -298,7 +298,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     const d = { concello: 'abegondo', uso: 'eucalipto', suelo: 'forestal', natura: false, ferrado: null, edges: [], exclusions: [], subzonas: [] };
     Object.keys(d).forEach((k) => { if (f[k] === undefined) f[k] = d[k]; });
     if (f.maxEdges == null) f.maxEdges = 80;
-    f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 1, core: 'nitens', anchor: null, opt: 'auto', dmin: 3, slopeMax: 0, pattern: 'cuad' }, f.params || {});
+    f.params = Object.assign({ sx: 3.5, sy: 3.5, angle: 0, shU: 0, shV: 0, rows: 1, core: 'nitens', anchor: null, opt: 'auto', dmin: 3, slopeMax: 0, pattern: 'cuad', terr: 'real', slA: 25, slB: 40 }, f.params || {});
     f.econ = f.econ || {};
     f.econ.coste = f.econ.coste == null ? null : f.econ.coste;
     f.econ.sp = f.econ.sp || {};
@@ -710,8 +710,8 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
   function exportCSV() {
     if (!prep) { toast('No hay datos'); return; }
     const T = treeTable(), n2 = (v) => v.toFixed(2).replace('.', ','), n7 = (v) => v.toFixed(7).replace('.', ',');
-    let o = '﻿nombre;especie;fila;columna;x_utm29;y_utm29;lat;lon;origen;estado;desv_m\n';
-    T.forEach((r) => { o += [r.name, S[r.sp].name, r.fila == null ? '' : r.fila, r.col == null ? '' : r.col, n2(r.x), n2(r.y), n7(r.ll[1]), n7(r.ll[0]), r.man ? 'manual' : 'matriz', r.st === 'p' ? 'plantado' : r.st === 'm' ? 'marra' : 'pendiente', (() => { const m = (finca.meas || {})[tkey(r.t)]; if (!m || r.st !== 'p') return ''; const q = prep.pj.toXY(m.ll[0], m.ll[1]); return n2(Math.hypot(q[0] - r.t.x, q[1] - r.t.y)); })()].join(';') + '\n'; });
+    let o = '﻿nombre;especie;fila;columna;x_utm29;y_utm29;lat;lon;origen;estado;desv_m;pend_pct\n';
+    T.forEach((r) => { o += [r.name, S[r.sp].name, r.fila == null ? '' : r.fila, r.col == null ? '' : r.col, n2(r.x), n2(r.y), n7(r.ll[1]), n7(r.ll[0]), r.man ? 'manual' : 'matriz', r.st === 'p' ? 'plantado' : r.st === 'm' ? 'marra' : 'pendiente', (() => { const m = (finca.meas || {})[tkey(r.t)]; if (!m || r.st !== 'p') return ''; const q = prep.pj.toXY(m.ll[0], m.ll[1]); return n2(Math.hypot(q[0] - r.t.x, q[1] - r.t.y)); })(), (() => { const v = slopeGrid ? slopeGrid.at(r.x, r.y) : NaN; return v === v ? v.toFixed(0) : ''; })()].join(';') + '\n'; });
     download('plantfinc-' + slug(finca.name) + '-arboles.csv', o, 'text/csv;charset=utf-8'); toast('CSV con ' + T.length + ' árboles', 3000);
   }
   function exportDXF() {
@@ -897,16 +897,51 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
   };
   /* ---------- v2.0: relieve (mapa de pendientes, perfil), curvas de nivel ---------- */
   function aspectName(az) { return ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'][Math.round(az / 45) % 8]; }
+  // resolución del MDT usado y clasificación de la superficie por tramos de pendiente
+  function mdtRes() {
+    if (!mdt) return null;
+    const s = String(mdt.src || '');
+    if (s === 'AWS') return { m: 30, txt: 'modelo global ~30 m', low: true };
+    if (/_5$/.test(s)) return { m: 5, txt: 'MDT CNIG 5 m', low: false };
+    if (/_25$/.test(s)) return { m: 25, txt: 'MDT CNIG 25 m', low: true };
+    return { m: 0, txt: 'MDT CNIG', low: false };
+  }
+  let clsCache = null;
+  function slopeClasses() {
+    if (!slopeGrid || !slopeGrid.zg || !prep) return null;
+    const A = Math.max(1, num(finca.params.slA, 25)), B = Math.max(A + 1, num(finca.params.slB, 40)), g = slopeGrid.zg;
+    const key = [slopeGrid.key, A, B, res.total, res.trees && res.trees.length].join('|');
+    if (clsCache && clsCache.key === key) return clsCache;
+    const a = [0, 0, 0], sf = [0, 0, 0], n = [0, 0, 0], cl = (v) => (v < A ? 0 : v < B ? 1 : 2);
+    for (let j = 1; j < g.ny - 1; j++) for (let i = 1; i < g.nx - 1; i++) {
+      const v = g.sl[j * g.nx + i]; if (v !== v || !PF.inPoly(g.x0 + i * g.cs, g.y0 + j * g.cs, prep.ring)) continue;
+      const k = cl(v); a[k] += g.cs * g.cs; sf[k] += g.cs * g.cs * Math.sqrt(1 + (v / 100) * (v / 100));
+    }
+    (res.trees || []).forEach((t) => { const v = slopeGrid.at(t.x, t.y); n[v === v ? cl(v) : 0]++; });
+    clsCache = { key: key, A: A, B: B, area: a, surf: sf, n: n, tot: a[0] + a[1] + a[2], cl: cl };
+    return clsCache;
+  }
+  const CLSN = ['Normal', 'Manual / ahoyado a mano', 'No apta para maquinaria'];
+  function slopeClsHTML() {
+    const q = slopeClasses(); if (!q || !q.tot) return '';
+    const col = ['#43a047', '#fb8c00', '#c62828'], lab = ['≤ ' + q.A + ' %', q.A + '–' + q.B + ' %', '> ' + q.B + ' %'];
+    let h = '<table style="width:100%;border-collapse:collapse;font-size:12px"><tr><th align="left">Zona</th><th align="right">Superficie real</th><th align="right">% finca</th><th align="right">Árboles</th></tr>';
+    for (let k = 0; k < 3; k++) h += '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:5px;background:' + col[k] + '"></span> ' + lab[k] + ' · ' + CLSN[k] + '</td><td align="right">' + (q.surf[k] / 1e4).toFixed(2) + ' ha</td><td align="right">' + (q.area[k] / q.tot * 100).toFixed(0) + ' %</td><td align="right">' + q.n[k] + '</td></tr>';
+    h += '</table>';
+    const rm = mdtRes();
+    if (rm && rm.low) h += '<div class="muted" style="color:#c62828">⚠ ' + rm.txt + ': suaviza el relieve y subestima las pendientes fuertes (en laderas de más del 40 % puede quedarse corto 5–15 puntos). Los tramos de arriba son un mínimo.</div>';
+    return h;
+  }
   function genTrees() {
     const p = finca.params;
     if (p.pattern === 'curvas' && slopeGrid && slopeGrid.zg && slopeStat) {
-      const dz = Math.max(0.25, num(p.sy, 3.5) * Math.max(0.03, slopeStat.mean / 100));
+      const sy = num(p.sy, 3.5), m = Math.max(0.03, slopeStat.mean / 100), dz = Math.max(0.25, p.terr === 'plano' || p.terr === 'dz' ? sy * m : sy * m / Math.sqrt(1 + m * m));
       const r = PF.contourTrees(prep, finca, slopeGrid.zg, dz);
       if (r.total) return r;
     }
     return PF.generate(prep, finca);
   }
-  let slopeOn = false;
+  let slopeOn = false, slopeZ = false;
   function refreshSlopeMap() {
     if (!mapReady) return;
     try { if (map.getLayer('slopeimg')) map.removeLayer('slopeimg'); if (map.getSource('slopeimg')) map.removeSource('slopeimg'); } catch (e) { /* */ }
@@ -915,7 +950,8 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     const cx = cv.getContext('2d'), im = cx.createImageData(g.nx, g.ny);
     for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
       const v = sl[j * g.nx + i], o = ((g.ny - 1 - j) * g.nx + i) * 4; if (v !== v || !PF.inPoly(g.x0 + i * g.cs, g.y0 + j * g.cs, prep.ring)) { im.data[o + 3] = 0; continue; }
-      const c = v < 10 ? [67, 160, 71] : v < 20 ? [253, 216, 53] : v < 30 ? [251, 140, 0] : v < 45 ? [229, 57, 53] : [123, 31, 162];
+      const qA = Math.max(1, num(finca.params.slA, 25)), qB = Math.max(qA + 1, num(finca.params.slB, 40));
+      const c = slopeZ ? (v < qA ? [67, 160, 71] : v < qB ? [251, 140, 0] : [198, 40, 40]) : v < 10 ? [67, 160, 71] : v < 20 ? [253, 216, 53] : v < 30 ? [251, 140, 0] : v < 45 ? [229, 57, 53] : [123, 31, 162];
       im.data[o] = c[0]; im.data[o + 1] = c[1]; im.data[o + 2] = c[2]; im.data[o + 3] = 170;
     }
     cx.putImageData(im, 0, 0); const pj = prep.pj, x1 = g.x0 + (g.nx - 1) * g.cs, y1 = g.y0 + (g.ny - 1) * g.cs;
@@ -1149,7 +1185,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     const cu = utm29(PF.centroidLL(finca.ring)[0], PF.centroidLL(finca.ring)[1]);
     return 'BORRADOR DE COMUNICACIÓN / SOLICITUD DE PLANTACIÓN FORESTAL\n(Documento orientativo generado por PLANTFINC. Debe adaptarse y presentarse en el modelo oficial vigente de la Xunta de Galicia / Distrito Forestal; no sustituye a este.)\n\n' +
       '1. DATOS DEL TITULAR\n  Nombre / razón social: ' + (o.nombre || '________________') + '\n  NIF: ' + (o.nif || '________________') + '\n  Domicilio: ' + (o.dir || '________________') + '\n  Teléfono: ' + (o.tel || '________________') + '   Correo: ' + (o.mail || '________________') + '\n\n' +
-      '2. DATOS DE LA FINCA\n  Denominación: ' + finca.name + '\n  Concello: ' + C[finca.concello].name + '\n  Referencia SIGPAC / catastral: ' + (o.ref || '________________') + '\n  Superficie: ' + (st.area / 1e4).toFixed(4) + ' ha' + (fm ? ' (' + (st.area / fm).toFixed(1) + ' ferrados)' : '') + '\n  Centro aprox. (ETRS89 UTM 29N): X ' + cu[0].toFixed(0) + ', Y ' + cu[1].toFixed(0) + '\n  Uso anterior: ' + (USOS[finca.uso] || finca.uso) + '\n' + (slopeStat ? '  Pendiente media / máxima: ' + slopeStat.mean.toFixed(0) + ' % / ' + slopeStat.max.toFixed(0) + ' %\n' : '') + '\n' +
+      '2. DATOS DE LA FINCA\n  Denominación: ' + finca.name + '\n  Concello: ' + C[finca.concello].name + '\n  Referencia SIGPAC / catastral: ' + (o.ref || '________________') + '\n  Superficie: ' + (st.area / 1e4).toFixed(4) + ' ha' + (fm ? ' (' + (st.area / fm).toFixed(1) + ' ferrados)' : '') + '\n  Centro aprox. (ETRS89 UTM 29N): X ' + cu[0].toFixed(0) + ', Y ' + cu[1].toFixed(0) + '\n  Uso anterior: ' + (USOS[finca.uso] || finca.uso) + '\n' + (slopeStat ? '  Pendiente media / máxima: ' + slopeStat.mean.toFixed(0) + ' % / ' + slopeStat.max.toFixed(0) + ' %' + (() => { const q = slopeClasses(); return q && q.tot ? ' (zonas: ≤' + q.A + ' % ' + (q.area[0] / q.tot * 100).toFixed(0) + ' %, ' + q.A + '–' + q.B + ' % ' + (q.area[1] / q.tot * 100).toFixed(0) + ' %, >' + q.B + ' % ' + (q.area[2] / q.tot * 100).toFixed(0) + ' %; superficie real ' + (slopeStat.surf / 1e4).toFixed(2) + ' ha)' : ''; })() + '\n' : '') + '\n' +
       '3. ACTUACIÓN PREVISTA\n  Tipo: plantación forestal (repoblación tras corta).\n  Especies y nº de pies: ' + es + ' (total ' + res.total + ').\n  Densidad: ' + Math.round(res.total / (st.area / 1e4)) + ' pies/ha.\n  Disposición: ' + (p.pattern === 'tres' ? 'tresbolillo, ' + p.sx + ' m entre árboles' : p.pattern === 'curvas' ? 'filas en curvas de nivel, ' + p.sx + ' m en la fila' : 'marco real ' + p.sx + ' × ' + p.sy + ' m') + '; mínima entre pies ' + p.dmin + ' m.\n  Franja de frondosas en los límites: ' + (p.rows || 0) + ' fila(s) cuando procede.\n  Método: apertura de hoyos / plantación manual con replanteo topográfico.\n' + (o.fecha ? '  Fecha prevista de ejecución: ' + o.fecha + '\n' : '') + '\n' +
       '4. LINDEROS Y DISTANCIAS APLICADAS (Lei 7/2012, art. 68 y anexo II)\n' + R + '\n\n5. EXCLUSIONES (caminos, pistas, líneas, zonas)\n' + exc + '\n\n' +
       '6. DOCUMENTACIÓN QUE SE ADJUNTA\n  - Plano de la finca y plano de replanteo (informe PDF de PLANTFINC).\n  - Coordenadas de los vértices y de los pies (GPX / KML / DXF / CSV).\n  - Acreditación de la titularidad: ____________________\n\n' +
@@ -2280,7 +2316,16 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
         if (+e.vecino < base) add('info', 'Lindero ' + (ri + 1) + ': la fila vecina está a ' + e.vecino + ' m, por debajo del mínimo legal (' + base + ' m). Se aplica el mínimo legal.');
       }
     });
-    if (slopeStat && slopeStat.mean > 25) add('warn', 'Terreno con pendiente media del ' + slopeStat.mean.toFixed(0) + ' % (máx. ' + slopeStat.max.toFixed(0) + ' %): valora la mecanización, los accesos y la erosión; las distancias del plano son horizontales.');
+    if (slopeStat && slopeStat.mean > 25) add('warn', 'Terreno con pendiente media del ' + slopeStat.mean.toFixed(0) + ' % (máx. ' + slopeStat.max.toFixed(0) + ' %): valora la mecanización, los accesos y la erosión' + (finca.params.pattern === 'curvas' && finca.params.terr !== 'plano' && finca.params.terr !== 'dz' ? '.' : '; las distancias del plano son horizontales (en ladera, usa «Curvas de nivel» con la separación sobre el terreno).'));
+    try {
+      const q = slopeClasses();
+      if (q && q.tot) {
+        const p2 = q.area[2] / q.tot * 100, p1 = q.area[1] / q.tot * 100;
+        if (p2 > 1) add('warn', 'El ' + p2.toFixed(0) + ' % de la finca (' + (q.surf[2] / 1e4).toFixed(2) + ' ha reales, ' + q.n[2] + ' árboles) supera el ' + q.B + ' % de pendiente: sin maquinaria, plantación manual con medidas de seguridad en ladera y vigilar la erosión.');
+        if (p1 > 5) add('info', 'El ' + p1.toFixed(0) + ' % de la finca está entre el ' + q.A + ' y el ' + q.B + ' % de pendiente (' + q.n[1] + ' árboles): ahoyado y plantación manuales.');
+        const rm = mdtRes(); if (rm && rm.low && slopeStat && slopeStat.max > 20) add('warn', 'El relieve procede de un ' + rm.txt + ': suaviza el terreno y subestima las pendientes fuertes. Con MDT de 5 m las zonas de más del ' + q.B + ' % pueden ser mayores.');
+      }
+    } catch (e) { /* */ }
     if (prep && !res.total) add('warn', 'No cabe ningún árbol con las distancias, franjas y exclusiones actuales.');
     add('info', 'Algunos concellos tienen ordenanzas propias que elevan distancias (p. ej. 6 m a fincas agrícolas para eucalipto). Compruébalo para ' + C[finca.concello].name + ' y ajústalo en la tabla de Normativa.');
     return w;
@@ -2326,9 +2371,9 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     const fm = ferradoM2();
     $('#m-ferr').textContent = fm && st.area ? (st.area / fm).toFixed(1) : '—';
     $('#m-trees').textContent = res.total;
-    ['counts', 'warns', 'econres', 'econres2', 'avance', 'lotes', 'calen'].forEach((id) => {
+    ['counts', 'warns', 'econres', 'econres2', 'avance', 'lotes', 'calen', 'slopecls'].forEach((id) => {
       const el = $('#' + id); if (!el) return;
-      el.innerHTML = id === 'counts' ? countsHTML() : id === 'warns' ? warnsHTML() : id === 'lotes' ? lotesHTML() : id === 'calen' ? (() => { try { return calenHTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : id === 'avance' ? (() => { try { return avanceHTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : id === 'econres2' ? (() => { try { return econ2HTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : econHTML();
+      el.innerHTML = id === 'slopecls' ? (() => { try { return slopeClsHTML(); } catch (e) { return ''; } })() : id === 'counts' ? countsHTML() : id === 'warns' ? warnsHTML() : id === 'lotes' ? lotesHTML() : id === 'calen' ? (() => { try { return calenHTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : id === 'avance' ? (() => { try { return avanceHTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : id === 'econres2' ? (() => { try { return econ2HTML(); } catch (e) { return '<div class="muted">' + esc(e.message) + '</div>'; } })() : econHTML();
     });
   }
 
@@ -2418,9 +2463,10 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
       '<option value="tres"' + (p.pattern === 'tres' ? ' selected' : '') + '>Tresbolillo (triángulos equiláteros: más árboles con la misma distancia)</option>' +
       '<option value="curvas"' + (p.pattern === 'curvas' ? ' selected' : '') + '>Curvas de nivel (filas siguiendo el relieve; necesita MDT)</option></select></div>' +
       (p.pattern === 'tres' ? '<div class="g2">' + inp('sx', 'Distancia entre árboles (m)') + '<div><label>Distancia entre filas (m)</label><input value="' + (p.sx * 0.8660254).toFixed(2) + '" disabled></div></div>'
-        : p.pattern === 'curvas' ? '<div class="g2">' + inp('sx', 'Distancia en la fila (m)') + inp('sy', 'Separación entre filas (m, horizontal media)') + '</div>'
+        : p.pattern === 'curvas' ? '<div class="g2">' + inp('sx', 'Distancia en la fila (m)') + inp('sy', 'Separación entre filas (m)') + '</div>' +
+          '<div><label>La separación entre filas se mide…</label><select data-bind="params.terr"><option value="real"' + (p.terr === 'real' || !p.terr ? ' selected' : '') + '>sobre el terreno (recomendado en ladera)</option><option value="plano"' + (p.terr === 'plano' ? ' selected' : '') + '>en planta (horizontal)</option><option value="dz"' + (p.terr === 'dz' ? ' selected' : '') + '>por desnivel constante (método antiguo)</option></select></div>'
         : '<div class="g2">' + inp('sx', 'Marco X (m)') + inp('sy', 'Marco Y (m)') + '</div>') +
-      (p.pattern === 'curvas' ? '<div class="muted">' + (slopeGrid ? 'Las filas siguen líneas de igual cota, separadas por el desnivel medio equivalente a «Separación entre filas».' : 'Sin MDT todavía: pulsa «Cargar MDT» más abajo; mientras tanto se usa la cuadrícula.') + '</div>' : '') +
+      (p.pattern === 'curvas' ? '<div class="muted">' + (slopeGrid ? 'Las filas siguen líneas de igual cota; con «sobre el terreno» la distancia entre filas es la real en cualquier pendiente (en planta quedan más juntas cuanto más fuerte es la ladera).' : 'Sin MDT todavía: pulsa «Cargar MDT» más abajo; mientras tanto se usa la cuadrícula.') + '</div>' : '') +
       optSel +
       '<div class="g2"><div><label>Ángulo (°)' + (p.opt === 'auto' ? ' · óptimo calculado' : '') + '</label><input type="number" step="0.5" inputmode="decimal" data-bind="params.angle" value="' + val(p.angle) + '"' + (p.opt === 'auto' ? ' disabled' : '') + '></div><div></div></div>' +
       (man ? '<div class="g2">' + inp('shU', 'Desplazamiento X (m)') + inp('shV', 'Desplazamiento Y (m)') + '</div>' +
@@ -2433,10 +2479,12 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
       '<button class="btn danger" data-act="clear-manual">Borrar cambios manuales y restaurar la matriz</button></details>' +
       '<details><summary>Ángulo ↔ nº de árboles</summary><div id="angchart">' + angChartHTML() + '</div><button class="btn sec" data-act="angcurve">Calcular gráfico</button></details>' +
       '<div class="g2e"><div><label>Pendiente máxima plantable (%) · 0 = sin límite</label><input type="number" step="1" min="0" inputmode="numeric" data-bind="params.slopeMax" value="' + val(p.slopeMax) + '"></div><button class="btn sec" data-act="mdt" style="width:auto;align-self:end">Cargar MDT</button></div>' +
-      '<button class="btn sec" data-act="slopemap">' + (slopeOn ? 'Ocultar' : 'Ver') + ' mapa de pendientes' + '</button>' +
+      '<div class="g2"><button class="btn sec" data-act="slopemap">' + (slopeOn ? 'Ocultar' : 'Ver') + ' mapa de pendientes</button><button class="btn sec" data-act="slopezones">' + (slopeOn && slopeZ ? 'Colores por gradiente' : 'Colores por zonas') + '</button></div>' +
+      '<div class="g2"><div><label>Límite zona normal (%)</label><input type="number" step="1" min="1" inputmode="numeric" data-bind="params.slA" value="' + val(p.slA) + '"></div><div><label>Límite no apta maquinaria (%)</label><input type="number" step="1" min="2" inputmode="numeric" data-bind="params.slB" value="' + val(p.slB) + '"></div></div>' +
       '<div class="g2"><button class="btn sec" data-act="contours">' + (curvOn ? 'Ocultar' : 'Ver') + ' curvas de nivel</button><button class="btn sec" data-act="flowmap">' + (flowOn ? 'Ocultar' : 'Ver') + ' escorrentía</button></div>' +
       '<button class="btn sec" data-act="flow-excl">Añadir vaguadas como exclusión (3 m)</button>' +
-      '<div class="muted" id="slopeinfo">' + (slopeStat ? (mdt && mdt.src === 'AWS' ? 'Relieve (modelo global ~30 m; CNIG falló: ' + esc(mdt.warn || '') + '): cota ' : 'Relieve (MDT CNIG): cota ') + Math.round(slopeStat.zmin) + '–' + Math.round(slopeStat.zmax) + ' m · pendiente media ' + slopeStat.mean.toFixed(0) + ' %, máx. ' + slopeStat.max.toFixed(0) + ' %' + (p.slopeMax > 0 ? ' · ' + slopeStat.over.toFixed(0) + ' % de la superficie supera el límite' : '') + ' · superficie real sobre el terreno ' + (slopeStat.surf / 1e4).toFixed(2) + ' ha (+' + ((slopeStat.surf / slopeStat.flat - 1) * 100).toFixed(0) + ' % sobre la proyectada); a cinta, ' + fmtM(p.sx) + ' en planta ≈ ' + fmtM(p.sx * Math.sqrt(1 + Math.pow(slopeStat.mean / 100, 2))) + ' sobre el terreno; ladera orientada al ' + aspectName(slopeStat.asp) : 'Sin datos de relieve todavía (pulsa «Cargar MDT»).') + '</div>' +
+      '<div id="slopecls">' + slopeClsHTML() + '</div>' +
+      '<div class="muted" id="slopeinfo">' + (slopeStat ? (mdt && mdt.src === 'AWS' ? 'Relieve (modelo global ~30 m; CNIG falló: ' + esc(mdt.warn || '') + '): cota ' : 'Relieve (' + (mdtRes() || { txt: 'MDT' }).txt + '): cota ') + Math.round(slopeStat.zmin) + '–' + Math.round(slopeStat.zmax) + ' m · pendiente media ' + slopeStat.mean.toFixed(0) + ' %, máx. ' + slopeStat.max.toFixed(0) + ' %' + (p.slopeMax > 0 ? ' · ' + slopeStat.over.toFixed(0) + ' % de la superficie supera el límite' : '') + ' · superficie real sobre el terreno ' + (slopeStat.surf / 1e4).toFixed(2) + ' ha (+' + ((slopeStat.surf / slopeStat.flat - 1) * 100).toFixed(0) + ' % sobre la proyectada); a cinta, ' + fmtM(p.sx) + ' en planta ≈ ' + fmtM(p.sx * Math.sqrt(1 + Math.pow(slopeStat.mean / 100, 2))) + ' sobre el terreno; ladera orientada al ' + aspectName(slopeStat.asp) : 'Sin datos de relieve todavía (pulsa «Cargar MDT»).') + '</div>' +
       '<div id="counts"></div>' +
       '<details><summary>Exclusiones y subzonas</summary>' +
       '<div class="muted">Puedes añadir tantas exclusiones como necesites (caminos de servicio a otros montes, líneas, zonas). La distancia es a cada lado del eje.</div>' +
@@ -2532,6 +2580,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
     if (t.dataset.bind) {
       setPath(finca, t.dataset.bind, v);
       if (t.dataset.bind === 'concello') { renderTab(); }
+      if (t.dataset.bind === 'params.slA' || t.dataset.bind === 'params.slB') { try { refreshSlopeMap(); } catch (e) { /* */ } }
       recalc();
     } else if (t.dataset.runchk) {
       const a = t.dataset.runchk.split(':'), R = runs()[+a[0]]; if (!R) return;
@@ -2693,6 +2742,7 @@ body.out{font-size:18px}body.out .btn,body.out .hbtn{min-height:54px;font-size:1
       case 'angcurve': if (!prep) break; toast('Calculando ángulos…', 6000); setTimeout(() => { try { angData = PF.angleCurve(prep, finca, 2); } catch (er) { fail('ángulos', er); } const el = $('#angchart'); if (el) el.innerHTML = angChartHTML(); toast('Gráfico calculado', 1500); }, 40); break;
       case 'angpick': { if (!angData) break; const r = b.getBoundingClientRect(), frac = Math.max(0, Math.min(1, ((e.clientX - r.left) / r.width * 300 - 14) / 280)), ang = Math.round(frac * angData.maxA); finca.params.opt = 'fijo'; finca.params.angle = ang; recalc(); renderTab(); toast('Ángulo fijado a ' + ang + '° → ' + res.total + ' árboles', 3500); break; }
       case 'slopemap': toggleSlopeMap(); break;
+      case 'slopezones': if (!slopeGrid) { toast('Carga primero el MDT (botón «Cargar MDT»)'); ensureMDT(); break; } if (slopeOn && slopeZ) slopeZ = false; else { slopeZ = true; slopeOn = true; } refreshSlopeMap(); renderTab(); { const q = slopeClasses(); if (slopeZ && q) toast('Verde ≤ ' + q.A + ' % · naranja ' + q.A + '–' + q.B + ' % (manual) · rojo > ' + q.B + ' % (sin maquinaria)', 6000); } break;
       case 'contours': toggleContours(); break;
       case 'crewview': toggleCrews(); break;
       case 'jalones': showJalones(); break;
